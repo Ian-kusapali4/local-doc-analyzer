@@ -1,12 +1,12 @@
 import { app, BrowserWindow, ipcMain, dialog, safeStorage, shell, screen, session, Menu } from 'electron';
-// 자동 업데이트: electron-updater 는 main 전용(production dependency 로 asar 에 동봉된다 —
-// electron-builder 는 files 패턴과 무관하게 production 의존성을 수집한다).
+// Auto-update: electron-updater runs in main-process only (bundled as a production dependency in asar) —
+// electron-builder collects production dependencies regardless of files patterns.
 import { autoUpdater } from 'electron-updater';
 import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 // R38 P1-2: sync `fs` 는 API 키 저장 로직과 함께 api-keys-store.ts 로 이동. 본 파일은 fsp 만 사용.
 import fsp from 'fs/promises';
-// 동기 확인이 필요한 유일한 지점 — updater 의 설치 직전 인스톨러 실재 확인(deps 로 주입).
+// The only sync check needed: verify the installer exists immediately before update installation (injected via deps).
 import { existsSync, readFileSync, rmSync } from 'fs';
 import { randomUUID } from 'crypto';
 import { OllamaManager } from './ollama-manager';
@@ -14,8 +14,8 @@ import { decideCloseAction, selectFlushTargets } from './window-flush-policy';
 import { computeDefaultWindowSize, MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT } from './window-size';
 import { createUpdaterService, type UpdaterService } from './updater';
 import { AUTO_CHECK_STARTUP_DELAY_MS, isInstallerUsable, type PendingUpdateLike } from './update-policy';
-// QA29(D-1): 인스톨러 관측(크기 + 선두 매직)은 fs 를 주입받는 별도 모듈로 분리됐다. 여기 인라인
-// 함수로 두었을 때는 export 조차 되지 않아 소스 토큰 스캔 외에는 어떤 테스트도 볼 수 없었다.
+// QA29(D-1): installer detection (size + file magic) was moved to a separate module that injects fs.
+// Keeping it inline here would prevent exports, and without source-token scanning there would be no way to test it.
 import { probeInstaller } from './installer-probe';
 import type { UpdateState } from '../shared/update-types';
 import { generate, abortGenerate, abortAllRequests, checkAvailability, analyzeImage, analyzeImageForOcr, generateEmbeddings, checkEmbeddingAvailability, cleanupAiService, registerEmbedRequest, unregisterEmbedRequest, GEMINI_EMBED_MODEL } from './ai-service';
@@ -104,12 +104,12 @@ const defaultSettings = {
   model: 'gemma3',
   ollamaBaseUrl: 'http://localhost:11434',
   theme: 'system',
-  uiLanguage: 'ko',
+  uiLanguage: 'en',
   defaultSummaryType: 'full',
   maxChunkSize: 4000,
   enableImageAnalysis: true,
   enableOcrFallback: true,
-  summaryLanguage: 'ko',
+  summaryLanguage: 'en',
   customSummaryTemplates: [],
   enableAnswerVerification: true,
   persistSessions: true,
@@ -118,17 +118,10 @@ const defaultSettings = {
 
 // R34 P2: VALID_SETTINGS_KEYS_SET 은 settings-keys.ts 에서 import (단일 출처).
 
-// 첫 실행(설정 파일 부재 또는 해당 키 미저장) 시 OS 로캘 기반 언어 기본값 — ko 계열 로캘이
-// 아니면 UI/요약 언어 모두 en. 기존 사용자의 저장된 설정은 _loadSettings 의 spread 순서상
-// 항상 우선하므로 영향 없음. app.getLocale() 은 ready 이후에만 유효하나 loadSettings 는
-// IPC 핸들러 경유로만 호출되므로 안전. 실패 시 기존 기본값(ko) 유지.
+// 기본 UI/요약 언어는 영어로 고정한다. 기존 사용자의 저장된 설정은 _loadSettings 의 spread
+// 순서상 항상 우선하므로 초기 값만 영어를 유지한다.
 function localeAwareDefaults(): Record<string, unknown> {
-  let lang: 'ko' | 'en' = 'ko';
-  try {
-    // R43 F6: prefix 'ko' 는 'kok'(콘칸어) 로캘과 오매칭 — 정확히 ko 또는 ko-* 만 한국어 판정
-    const loc = app.getLocale().toLowerCase();
-    lang = (loc === 'ko' || loc.startsWith('ko-')) ? 'ko' : 'en';
-  } catch { /* getLocale 실패 시 ko 유지 */ }
+  const lang: 'ko' | 'en' = 'en';
   return { ...defaultSettings, uiLanguage: lang, summaryLanguage: lang };
 }
 

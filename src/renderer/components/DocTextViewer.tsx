@@ -33,7 +33,7 @@ const BASE_FONT_PX = 16;
  * PdfViewer 에만 있었음) — DOCX 에서 인용을 누르면 패널이 영영 열려 있었다. 닫기는
  * `ViewerCloseButton`(버튼+Esc)·`closeCitationPanel`(해제+포커스 반환)로 PdfViewer 와 공유한다.
  */
-export function DocTextViewerPanel() {
+export function DocTextViewerPanel({ standalone = false }: { standalone?: boolean }) {
   const t = useT();
   const pageTexts = useAppStore((s) => s.document?.pageTexts);
   const unitKind = useAppStore((s) => s.document?.unitKind) ?? 'page';
@@ -68,7 +68,7 @@ export function DocTextViewerPanel() {
             onZoomIn={() => zoomBy(1, ZOOM_STEP_BUTTON)}
             onZoomReset={() => setZoom(1)}
           />
-          <ViewerCloseButton onClose={closeCitationPanel} className="ml-1" />
+          {!standalone && <ViewerCloseButton onClose={closeCitationPanel} className="ml-1" />}
         </div>
       </div>
       <div

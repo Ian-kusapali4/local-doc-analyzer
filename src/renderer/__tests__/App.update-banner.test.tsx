@@ -16,7 +16,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, act, cleanup } from '@testing-library/react';
+import { render, screen, act, cleanup, fireEvent } from '@testing-library/react';
 import type { UpdateState } from '../../shared/update-types';
 
 // 자식 컴포넌트는 이 테스트의 관심사가 아니다 — 렌더 비용과 부수효과만 만든다.
@@ -25,6 +25,9 @@ vi.mock('../components/RecentDocuments', () => ({ RecentDocuments: () => null })
 vi.mock('../components/GlobalSearch', () => ({ GlobalSearch: () => null }));
 vi.mock('../components/CollectionsList', () => ({ CollectionsList: () => null }));
 vi.mock('../components/TabBar', () => ({ TabBar: () => null }));
+vi.mock('../components/PdfViewer', () => ({ PdfViewerPanel: () => <div data-testid="source-document-viewer" /> }));
+vi.mock('../components/DocTextViewer', () => ({ DocTextViewerPanel: () => <div data-testid="source-document-viewer" /> }));
+vi.mock('../components/QaChat', () => ({ QaChat: () => <div data-testid="assistant-chat" /> }));
 vi.mock('../components/SummaryViewer', () => ({ SummaryViewer: () => null }));
 vi.mock('../components/SummaryTypeSelector', () => ({ SummaryTypeSelector: () => null }));
 vi.mock('../components/StatusBar', () => ({ StatusBar: () => null }));
@@ -72,6 +75,7 @@ vi.stubGlobal('window', Object.assign(window, {
 import App from '../App';
 import { useAppStore } from '../lib/store';
 import { DEFAULT_SETTINGS } from '../types';
+import { formatUnitCount } from '../lib/citation';
 
 const state = (over: Partial<UpdateState>): UpdateState => ({
   status: 'idle',
@@ -155,7 +159,35 @@ describe('App — 파일 정보 헤더의 단위 (QA35 W04)', () => {
       isGenerating: false,
     });
     await mountApp();
-    expect(screen.getByText(/📎 deck\.pptx \(12슬라이드\)/)).toBeTruthy();
+    expect(screen.getByText('deck.pptx')).toBeTruthy();
+    expect(screen.getByText(formatUnitCount(12, 'slide', 'short'))).toBeTruthy();
+  });
+
+  it('an open document keeps the source viewer and assistant visible side by side', async () => {
+    useAppStore.setState({
+      document: { id: 'doc-ui', fileName: 'report.pdf', filePath: '/d/report.pdf', pageCount: 2, unitKind: 'page', extractedText: 'text', pageTexts: ['text'] } as never,
+      summaryStream: '',
+      isGenerating: false,
+      summaryCollapsed: false,
+    });
+    await mountApp();
+    expect(screen.getByTestId('source-document-viewer')).toBeTruthy();
+    expect(screen.getByTestId('assistant-chat')).toBeTruthy();
+    expect(screen.getByText('MHC Document Analyzer')).toBeTruthy();
+  });
+
+  it('the source/assistant divider is keyboard-resizable and updates the saved workspace ratio', async () => {
+    useAppStore.setState({
+      document: { id: 'doc-ui', fileName: 'report.pdf', filePath: '/d/report.pdf', pageCount: 2, unitKind: 'page', extractedText: 'text', pageTexts: ['text'] } as never,
+      workspaceSourceWidth: 0.55,
+      summaryStream: '',
+    });
+    await mountApp();
+    const divider = screen.getByRole('separator', { name: /resize/i });
+    expect(divider.getAttribute('aria-valuenow')).toBe('45');
+    fireEvent.keyDown(divider, { key: 'ArrowLeft' });
+    expect(useAppStore.getState().workspaceSourceWidth).toBeCloseTo(0.53);
+    expect(divider.getAttribute('aria-valuenow')).toBe('47');
   });
 });
 

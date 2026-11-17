@@ -879,28 +879,28 @@ describe('file:open-pdf (다이얼로그 우회 방어)', () => {
 // 첫 실행 언어 감지: localeAwareDefaults 가 OS 로캘 기반 uiLanguage/summaryLanguage 기본값을
 // settings-store loadSettings 의 defaults 인자로 전달하는지 검증. 저장된 설정이 있으면
 // settings-store 의 spread 가 defaults 를 덮으므로(settings-store.test 에서 가드) 기존 사용자 무영향.
-describe('settings:get 로캘 기반 언어 기본값', () => {
+describe('settings:get locale-based language defaults', () => {
   const lastDefaults = () =>
     H.settings.load.mock.calls.at(-1)?.[1] as Record<string, unknown>;
 
-  it('ko 계열 로캘 → 기본값 ko 유지', async () => {
+  it('ko locale family keeps English defaults', async () => {
     H.appLocale.mockReturnValue('ko-KR');
     await invoke('settings:get');
-    expect(lastDefaults().uiLanguage).toBe('ko');
-    expect(lastDefaults().summaryLanguage).toBe('ko');
+    expect(lastDefaults().uiLanguage).toBe('en');
+    expect(lastDefaults().summaryLanguage).toBe('en');
   });
 
-  it('비-ko 로캘(en-US) → uiLanguage/summaryLanguage 기본값 en', async () => {
+  it('non-ko locale(en-US) keeps English defaults', async () => {
     H.appLocale.mockReturnValue('en-US');
     await invoke('settings:get');
     expect(lastDefaults().uiLanguage).toBe('en');
     expect(lastDefaults().summaryLanguage).toBe('en');
   });
 
-  it('getLocale throw 시 ko 로 안전 fallback', async () => {
+  it('getLocale throw falls back safely to English', async () => {
     H.appLocale.mockImplementation(() => { throw new Error('locale unavailable'); });
     await invoke('settings:get');
-    expect(lastDefaults().uiLanguage).toBe('ko');
+    expect(lastDefaults().uiLanguage).toBe('en');
   });
 });
 

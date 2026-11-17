@@ -84,12 +84,12 @@ describe('t() 런타임 동작', () => {
     useAppStore.setState((s) => ({ settings: { ...s.settings, uiLanguage: 'ko' } }));
   });
 
-  it('ko 언어에서 ko 번역 반환', async () => {
+  it('ko 언어 설정에서도 영어 번역을 유지한다', async () => {
     const { t } = await import('../i18n');
     const { useAppStore } = await import('../store');
     useAppStore.setState((s) => ({ settings: { ...s.settings, uiLanguage: 'ko' } }));
     const out = t('pdfviewer.pageOf', { current: 1, total: 10 });
-    expect(out).toBe('1 / 10 페이지');
+    expect(out).toBe('Page 1 of 10');
   });
 
   it('en 언어에서 en 번역 반환', async () => {
@@ -159,7 +159,7 @@ describe('translateMainProgress / translateMainError', () => {
     useAppStore.setState((s) => ({ settings: { ...s.settings, uiLanguage: 'en' as const } }));
     expect(translateMainProgress({ key: 'pulling', params: { percent: '42%' } })).toBe('Downloading model... 42%');
     useAppStore.setState((s) => ({ settings: { ...s.settings, uiLanguage: 'ko' as const } }));
-    expect(translateMainProgress({ key: 'pulling', params: { percent: '42%' } })).toBe('모델 다운로드 중... 42%');
+    expect(translateMainProgress({ key: 'pulling', params: { percent: '42%' } })).toBe('Downloading model... 42%');
   });
 
   it('raw 이벤트는 원문 passthrough, 비정상 입력은 빈 문자열', async () => {

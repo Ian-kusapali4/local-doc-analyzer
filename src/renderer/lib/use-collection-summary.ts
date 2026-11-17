@@ -426,7 +426,7 @@ export async function generateCollectionSummary(kind: CollectionSummaryKind): Pr
       ? t('collection.compareResultTitle', { count: blocks.length })
       : t('collection.unifiedResultTitle', { count: blocks.length });
 
-    const prompt = buildCollectionSummaryPrompt(kind, blocks, st.settings.summaryLanguage || 'ko');
+    const prompt = buildCollectionSummaryPrompt(kind, blocks, st.settings.summaryLanguage || 'en');
     requestId = client.prepareSummarize();
 
     // 사용자 요청 메시지 + assistant 결과를 기존 Q&A 스레드에 표시(요약 영역 재사용 — 새 패널 없음)

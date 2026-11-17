@@ -5,7 +5,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const M = vi.hoisted(() => ({ prompt: '', tokens: ['통합', ' 결과'], throwAfter: false, midStream: null as null | (() => void) }));
+const M = vi.hoisted(() => ({ prompt: '', tokens: ['Combined', ' result'], throwAfter: false, midStream: null as null | (() => void) }));
 vi.mock('../ai-client', () => ({
   AiClient: class {
     prepareSummarize() { return 'req'; }
@@ -79,7 +79,7 @@ function setStore(memberHashes: string[]): void {
     notice: null, error: null,
     // QA31: persistSessions 도 함께 못박는다 — 리셋하지 않으면 persist OFF 를 세운 테스트가
     // 뒤 테스트로 누수돼 순서 의존 그린이 된다(QA22 가 형제 파일에서 겪은 것과 같은 클래스).
-    settings: { ...useAppStore.getState().settings, summaryLanguage: 'ko', persistSessions: true },
+    settings: { ...useAppStore.getState().settings, summaryLanguage: 'en', persistSessions: true },
   });
 }
 
@@ -90,7 +90,7 @@ beforeEach(() => {
   M.midStream = null;
   // QA32: `M.tokens` 도 못박는다 — 리셋하지 않으면 이것을 바꾸는 테스트가 뒤 테스트로 누수돼
   // 순서 의존 그린이 된다(QA22 가 셔플로 실측한 클래스. 실제로 한 번 밟았다).
-  M.tokens = ['통합', ' 결과'];
+  M.tokens = ['Combined', ' result'];
   mockSessionList.mockResolvedValue([manifestEntry('b'.repeat(64), MODEL, 3)]);
   useAppStore.getState().ragIndex.clear();
   // 활성 문서 메모리 표현·busy 플래그 리셋 — 테스트 간 누수 차단(QA M1 메모리 폴백 경로가 이 값을 읽음)
@@ -142,24 +142,24 @@ describe('buildCollectionSummaryPrompt (L1)', () => {
 });
 
 describe('generateCollectionSummary (L2)', () => {
-  it('ready 2멤버 → 멤버 요약 블록으로 프롬프트 구성 + assistant 결과 커밋', async () => {
+  it('ready 2 members -> member summary blocks in prompt + assistant result committed', async () => {
     seedActive();
     setStore(['a'.repeat(64), 'b'.repeat(64)]);
     mockSessionLoad.mockImplementation((h: string) =>
       Promise.resolve(memberSession(h === 'a'.repeat(64) ? 'Alpha.pdf' : 'Beta.pdf',
-        h === 'a'.repeat(64) ? '알파 요약' : '베타 요약', 'fulltext')));
+        h === 'a'.repeat(64) ? 'Alpha summary' : 'Beta summary', 'fulltext')));
 
     await generateCollectionSummary('unified');
 
     expect(M.prompt).toContain('## Alpha.pdf');
-    expect(M.prompt).toContain('알파 요약');
+    expect(M.prompt).toContain('Alpha summary');
     expect(M.prompt).toContain('## Beta.pdf');
-    expect(M.prompt).toContain('베타 요약');
+    expect(M.prompt).toContain('Beta summary');
     const msgs = useAppStore.getState().qaMessages;
     expect(msgs.at(-1)?.role).toBe('assistant');
-    expect(msgs.at(-1)?.content).toContain('통합 결과');       // 본문
-    expect(msgs.at(-1)?.content).toContain('통합 요약');       // 결과 배지(제목)
-    expect(msgs.some((m) => m.role === 'user')).toBe(true); // 요청 메시지
+    expect(msgs.at(-1)?.content).toContain('Combined result');
+    expect(msgs.at(-1)?.content).toContain('Combined summary');
+    expect(msgs.some((m) => m.role === 'user')).toBe(true);
   });
 
   it('QA27(B-High): 멤버 요약의 맨 [p.N] 은 reduce 프롬프트에서 출처가 붙은 라벨로 승격된다', async () => {

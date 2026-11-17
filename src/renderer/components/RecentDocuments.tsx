@@ -11,7 +11,7 @@ import { formatUnitCount } from '../lib/citation';
  * Design Ref: §5.3 — manifest 기반 최근 세션 목록. 열기(filePath 재오픈 → 세션 복원) / 삭제.
  * filePath 부재(이동/삭제) 시 graceful — 에러 배너로 안내하고 목록은 유지.
  */
-export function RecentDocuments() {
+export function RecentDocuments({ compact = false }: { compact?: boolean }) {
   const tr = useT();
   const persistEnabled = useAppStore((s) => s.settings.persistSessions);
   const [entries, setEntries] = useState<SessionManifestEntry[]>([]);
@@ -99,8 +99,8 @@ export function RecentDocuments() {
   }
 
   return (
-    <div className="w-full max-w-2xl mx-auto mt-6">
-      <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 px-1">
+    <div className={compact ? 'w-full' : 'w-full max-w-2xl mx-auto mt-6'}>
+      <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2 px-1">
         {tr('recent.title')}
       </h2>
       {loadFailed ? (
@@ -117,38 +117,42 @@ export function RecentDocuments() {
       ) : entries.length === 0 ? (
         <p className="text-xs text-gray-600 dark:text-gray-400 px-1 py-2">{tr('recent.empty')}</p>
       ) : (
-      <ul ref={listRef} className="flex flex-col gap-2">
+      <ul ref={listRef} className="flex flex-col gap-1.5">
         {entries.map((e) => (
           <li
             key={e.docHash}
-            className="flex items-center justify-between gap-3 px-4 py-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
+            className={`flex items-center justify-between gap-2 rounded-lg border border-gray-200 dark:border-gray-700 ${
+              compact ? 'px-2 py-2 bg-white/5 border-white/10' : 'px-4 py-3 bg-gray-50 dark:bg-gray-800'
+            }`}
           >
             <button
               onClick={() => handleOpen(e)}
               disabled={busy === e.docHash}
-              className="flex-1 min-w-0 text-left disabled:opacity-50"
+              className={`flex-1 min-w-0 text-left disabled:opacity-50 ${compact ? 'text-gray-100' : ''}`}
               title={e.filePath}
             >
-              <div className="truncate text-sm font-medium text-gray-800 dark:text-gray-100">
-                📄 {e.fileName}
+              <div className={`truncate text-sm font-medium ${compact ? 'text-gray-100' : 'text-gray-800 dark:text-gray-100'}`}>
+                <span aria-hidden="true">📄 </span>{e.fileName}
               </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              <div className={`text-xs mt-0.5 ${compact ? 'text-gray-400' : 'text-gray-500 dark:text-gray-400'}`}>
                 {formatUnitCount(e.pageCount, e.unitKind ?? 'page')}
-                {e.chunkCount > 0 && <> · {tr('recent.indexed', { count: e.chunkCount })}</>}
+                {!compact && e.chunkCount > 0 && <> · {tr('recent.indexed', { count: e.chunkCount })}</>}
               </div>
             </button>
             <div className="flex items-center gap-1 shrink-0">
               <button
                 onClick={() => handleOpen(e)}
                 disabled={busy === e.docHash}
-                className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 transition-colors"
+                className={`text-xs bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 transition-colors ${
+                  compact ? 'px-2 py-1' : 'px-3 py-1.5 text-sm'
+                }`}
               >
                 {busy === e.docHash ? '…' : tr('recent.open')}
               </button>
               <button
                 onClick={() => handleDelete(e.docHash)}
                 disabled={busy === e.docHash}
-                className="p-1.5 text-gray-400 hover:text-red-500 disabled:opacity-50 transition-colors"
+                className="p-1 text-gray-400 hover:text-red-500 disabled:opacity-50 transition-colors"
                 aria-label={tr('recent.delete')}
                 title={tr('recent.delete')}
               >

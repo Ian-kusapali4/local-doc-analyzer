@@ -17,9 +17,10 @@ import { usesCanvasViewer, stripSupportedExtension } from '../../shared/document
 
 interface SummaryViewerProps {
   onAbort?: () => void;
+  externalDocumentViewer?: boolean;
 }
 
-export function SummaryViewer({ onAbort }: SummaryViewerProps) {
+export function SummaryViewer({ onAbort, externalDocumentViewer = false }: SummaryViewerProps) {
   const document = useAppStore((s) => s.document);
   const summaryStream = useAppStore((s) => s.summaryStream);
   const isGenerating = useAppStore((s) => s.isGenerating);
@@ -183,7 +184,7 @@ export function SummaryViewer({ onAbort }: SummaryViewerProps) {
     }
   };
 
-  const showCitationPanel = citationTarget !== null;
+  const showCitationPanel = !externalDocumentViewer && citationTarget !== null;
   // DR-01: 동적 flex-basis — 좌측은 (1 - panelRatio), 우측은 panelRatio
   /**
    * 비율 → CSS 퍼센트. QA33(H6 회귀 넷 작성 중 발견): `(1 - 0.7) * 100` 은

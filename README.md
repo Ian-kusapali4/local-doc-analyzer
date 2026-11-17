@@ -540,3 +540,7 @@ The threat model and mitigations currently in place. For the detailed per-versio
 ## License
 
 MIT License. See [LICENSE](LICENSE) for details.
+
+## Developer
+
+Developed by Ian Kusapali — [ikusapali@gmail.com](mailto:ikusapali@gmail.com)

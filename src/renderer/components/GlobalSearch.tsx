@@ -43,7 +43,7 @@ function highlight(text: string, query: string): ReactNode {
 /** 임베딩이 클라우드 서버로 나가는 provider — ollama/claude(→ollama fallback)는 localhost 전용. */
 const CLOUD_EMBED_PROVIDERS: Record<string, string> = { openai: 'OpenAI', gemini: 'Gemini' };
 
-export function GlobalSearch() {
+export function GlobalSearch({ compact = false }: { compact?: boolean }) {
   const tr = useT();
   const persistEnabled = useAppStore((s) => s.settings.persistSessions);
   const provider = useAppStore((s) => s.settings.provider);
@@ -153,8 +153,8 @@ export function GlobalSearch() {
   );
 
   return (
-    <div className="w-full max-w-2xl mx-auto mt-6">
-      <div className="flex items-center gap-1 mb-1.5">
+    <div className={compact ? 'w-full' : 'w-full max-w-2xl mx-auto mt-6'}>
+      {!compact && <div className="flex items-center gap-1 mb-1.5">
         <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-gray-100 dark:bg-gray-800" role="group" aria-label={tr('search.modeLabel')}>
           {modeBtn('keyword', tr('search.modeKeyword'))}
           {modeBtn('semantic', tr('search.modeSemantic'))}
@@ -168,7 +168,7 @@ export function GlobalSearch() {
             {tr('search.cloudEmbedBadge', { provider: cloudEmbedName })}
           </span>
         )}
-      </div>
+      </div>}
       <div className="flex gap-2">
         <input
           type="text"
@@ -177,12 +177,16 @@ export function GlobalSearch() {
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) void handleSearch(); }}
           placeholder={tr('search.placeholder')}
           aria-label={tr('search.title')}
-          className="flex-1 min-w-0 px-3 py-2 text-sm border rounded-lg dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-gray-400"
+          className={`flex-1 min-w-0 px-3 py-2 text-sm border rounded-lg dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-gray-400 ${
+            compact ? 'bg-slate-900 border-slate-700 text-gray-100' : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200'
+          }`}
         />
         <button
           onClick={() => void handleSearch()}
           disabled={searching || query.trim().length < 2}
-          className="px-4 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 transition-colors"
+          className={`text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 transition-colors ${
+            compact ? 'px-2 py-2' : 'px-4 py-2'
+          }`}
         >
           {searching ? tr('search.searching') : tr('search.button')}
         </button>
@@ -209,9 +213,11 @@ export function GlobalSearch() {
                   onClick={() => void handleOpen(r)}
                   disabled={busy !== null}
                   title={r.filePath}
-                  className="w-full text-left px-4 py-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-600 disabled:opacity-50 transition-colors"
+                  className={`w-full text-left rounded-lg border hover:border-blue-400 dark:hover:border-blue-600 disabled:opacity-50 transition-colors ${
+                    compact ? 'px-2 py-2 bg-white/5 border-white/10' : 'px-4 py-3 bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700'
+                  }`}
                 >
-                  <div className="flex items-center gap-2 truncate text-sm font-medium text-gray-800 dark:text-gray-100">
+                  <div className="flex items-center gap-2 truncate text-sm font-medium text-gray-100">
                     <span className="truncate">📄 {r.fileName}</span>
                     {r.inSummary && (
                       <span className="shrink-0 px-1.5 py-0.5 text-[10px] bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded">

@@ -108,7 +108,7 @@ export class AiClient {
         model: this.settings.model,
         ollamaBaseUrl: this.settings.ollamaBaseUrl,
         temperature: 0.3,
-        language: this.settings.summaryLanguage || 'ko',
+        language: this.settings.summaryLanguage || 'en',
         // 커스텀 템플릿(type==='custom')일 때만 사용자 프롬프트를 함께 전달.
         ...(type === 'custom' && customPrompt ? { customPrompt } : {}),
       });

@@ -79,6 +79,7 @@ interface PdfViewerProps {
   jumpNonce?: number;
   /** 패널 닫기 */
   onClose: () => void;
+  showClose?: boolean;
 }
 
 // 자동 fit 의 0.6~2.0 clamp 와 배율 합성은 lib/viewer-zoom.ts(composeRenderScale) 로 이동(v1.6.0).
@@ -95,7 +96,7 @@ const EVICT_ROOT_MARGIN = '200% 0px';
  * 패널 너비 기반 동적 scale 계산으로 자동 fit.
  * targetPage 변경 시 해당 페이지로 scrollIntoView.
  */
-export function PdfViewer({ pdfBytes, targetPage, jumpNonce = 0, onClose }: PdfViewerProps) {
+export function PdfViewer({ pdfBytes, targetPage, jumpNonce = 0, onClose, showClose = true }: PdfViewerProps) {
   const t = useT();
   // t 는 UI 언어 변경 시 새 참조가 되어 effect 의존성에 두면 고비용 pdfjs 재렌더를 유발한다.
   // 렌더 효과에서는 ref 로만 참조해 언어 변경이 재렌더를 트리거하지 않도록 한다.
@@ -660,7 +661,7 @@ export function PdfViewer({ pdfBytes, targetPage, jumpNonce = 0, onClose }: PdfV
             onZoomIn={() => zoomBy(1, ZOOM_STEP_BUTTON)}
             onZoomReset={() => setZoom(1)}
           />
-          <ViewerCloseButton onClose={onClose} className="ml-1" />
+          {showClose && <ViewerCloseButton onClose={onClose} className="ml-1" />}
         </div>
       </div>
 
@@ -782,7 +783,7 @@ function OutlineTree({
  * 1회 lazy 로드해 store 에 주입한다(이후 동작·캐시는 상주 경로와 동일). 로드 도중엔 스피너,
  * 실패(파일 이동/삭제·재읽기 불가)면 안내. 합성경로 드롭 문서는 파싱 시 이미 상주돼 즉시 렌더.
  */
-export function PdfViewerPanel() {
+export function PdfViewerPanel({ standalone = false }: { standalone?: boolean }) {
   const t = useT();
   const citationTarget = useAppStore((s) => s.citationTarget);
   const citationJumpNonce = useAppStore((s) => s.citationJumpNonce);
@@ -796,6 +797,7 @@ export function PdfViewerPanel() {
 
   // 상주 바이트가 없고 재읽기 가능한 실경로면 디스크에서 1회 로드 → store 주입.
   const canLazyLoad = !pdfBytes && !!filePath && isReReadablePath(filePath) && !!docId;
+  const targetPage = citationTarget?.page ?? 1;
   useEffect(() => {
     if (!canLazyLoad || !filePath || !docId) return;
     let cancelled = false;
@@ -815,16 +817,17 @@ export function PdfViewerPanel() {
     return () => { cancelled = true; };
   }, [canLazyLoad, filePath, docId]);
 
-  if (!citationTarget || !docId) return null; // 문서 없으면 패널 무의미
+  if ((!citationTarget && !standalone) || !docId) return null;
 
   // 상주/lazy 바이트가 준비되면 정상 뷰어
   if (pdfBytes) {
     return (
       <PdfViewer
         pdfBytes={pdfBytes}
-        targetPage={citationTarget.page}
+        targetPage={targetPage}
         jumpNonce={citationJumpNonce}
         onClose={handleClose}
+        showClose={!standalone}
       />
     );
   }

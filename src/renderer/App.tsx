@@ -11,6 +11,10 @@ import { closeTab } from './lib/tabs';
 import { formatUnitCount } from './lib/citation';
 import { SummaryViewer } from './components/SummaryViewer';
 import { SummaryTypeSelector } from './components/SummaryTypeSelector';
+import { ResizeHandle } from './components/ResizeHandle';
+import { QaChat } from './components/QaChat';
+import { PdfViewerPanel } from './components/PdfViewer';
+import { DocTextViewerPanel } from './components/DocTextViewer';
 import { StatusBar } from './components/StatusBar';
 import { SettingsPanel } from './components/SettingsPanel';
 import { OllamaSetupWizard } from './components/OllamaSetupWizard';
@@ -21,8 +25,8 @@ import { useRagBuilder } from './lib/use-qa';
 import { useSessionPersistence } from './lib/use-session';
 import { prefetchMarkdownRenderer } from './lib/safe-markdown';
 import { MAX_PDF_SIZE_BYTES } from '../shared/constants';
-// Task 9: 확장자·매직바이트 판별을 document-formats.ts 단일 출처로 모은다.
-import { isSupportedExtension, hasPdfMagic, hasZipMagic, hasCfbMagic, hasHwp3Magic, SUPPORTED_LABEL } from '../shared/document-formats';
+// Task 9: centralize extension and magic-byte detection in document-formats.ts as the single source of truth.
+import { isSupportedExtension, hasPdfMagic, hasZipMagic, hasCfbMagic, hasHwp3Magic, SUPPORTED_LABEL, usesCanvasViewer } from '../shared/document-formats';
 import { selectUpdateBanner, shouldResetDismiss, type UpdateBanner } from './lib/update-banner';
 import type { UpdateState } from '../shared/update-types';
 import logoImg from './assets/logo.png';
@@ -32,16 +36,17 @@ export default function App() {
   const setView = useAppStore((s) => s.setView);
   const document = useAppStore((s) => s.document);
   const setDocument = useAppStore((s) => s.setDocument);
-  // 성능: 내용 전체가 아니라 존재 여부만 구독 — 요약 스트리밍 중 50ms flush 마다 App 전체
-  // (header·TabBar·StatusBar 포함)가 재조정되던 것을 empty↔non-empty 전이 1회로 제한.
-  // (실제 스트림 문자열은 SummaryViewer 가 자체 구독)
+  // Performance: subscribe only to presence, not the full content — while summary streaming is updating at 50ms flushes,
+  // keep App-wide re-renders limited to a single empty↔non-empty transition.
+  // (The actual stream text is subscribed directly by SummaryViewer)
   const hasSummary = useAppStore((s) => s.summaryStream.length > 0);
   const isGenerating = useAppStore((s) => s.isGenerating);
   const setProgress = useAppStore((s) => s.setProgress);
   const clearStream = useAppStore((s) => s.clearStream);
   const setSummary = useAppStore((s) => s.setSummary);
-  // 필드별 구독 — settings 전체를 구독하면 무관한 설정 변경(OCR/요약옵션/임베딩 등)에도 새
-  // settings 객체 참조로 App(루트) 전체가 리렌더된다. App 이 실제 쓰는 4개만 개별 구독한다.
+  // Subscribe per field — if we subscribe to the entire settings object, then unrelated changes
+  // (OCR/summary options/embedding, etc.) still trigger a root App re-render via a new settings reference.
+  // App only uses four fields here, so they are subscribed individually.
   const theme = useAppStore((s) => s.settings.theme);
   const uiLanguage = useAppStore((s) => s.settings.uiLanguage);
   const provider = useAppStore((s) => s.settings.provider);
@@ -52,50 +57,53 @@ export default function App() {
   const notice = useAppStore((s) => s.notice);
   const setNotice = useAppStore((s) => s.setNotice);
   const isParsing = useAppStore((s) => s.isParsing);
-  // QA18(D-MED): 문서가 열린 상태의 재파싱 진행 배너용(PdfUploader 는 이때 마운트되지 않음).
+  // QA18(D-MED): progress banner while a document is being reparsed while open (PdfUploader is not mounted at that time).
   const ocrProgress = useAppStore((s) => s.ocrProgress);
   const isQaGenerating = useAppStore((s) => s.isQaGenerating);
   const ollamaStatus = useAppStore((s) => s.ollamaStatus);
   const summaryCollapsed = useAppStore((s) => s.summaryCollapsed);
   const setSummaryCollapsed = useAppStore((s) => s.setSummaryCollapsed);
+  const workspaceSourceWidth = useAppStore((s) => s.workspaceSourceWidth);
+  const setWorkspaceSourceWidth = useAppStore((s) => s.setWorkspaceSourceWidth);
   const [modelHint, setModelHint] = useState<string | null>(null);
-  // M1(UX): 닫은 모델 힌트의 (document.id:model) 키 집합 — 영속 dismiss.
+  // M1(UX): set of dismissed model-hint keys keyed as (document.id:model) — persisted dismiss state.
   const dismissedModelHintRef = useRef<Set<string>>(new Set());
-  // a11y M5: 뷰 전환 포커스 관리용 refs.
+  // a11y M5: refs used to manage focus during view switching.
   const settingsBtnRef = useRef<HTMLButtonElement>(null);
   const altViewRef = useRef<HTMLElement>(null);
-  // QA18(D-LOW): main 뷰의 <main> — 포커스를 넘길 버튼이 없을 때의 최종 폴백.
+  // QA18(D-LOW): the <main> element for the main view — final fallback when no focus-target button is available.
   const mainViewRef = useRef<HTMLElement>(null);
+  const workspaceRef = useRef<HTMLDivElement>(null);
   const prevViewRef = useRef(useAppStore.getState().view);
-  // QA10(A-LOW): 요약 뷰어 접기(✕) 시 포커스가 사라진 ✕ 버튼에서 body 로 표류하지 않도록,
-  // 재진입("요약 보기") 버튼으로 이동시키기 위한 ref/전이 추적.
+  // QA10(A-LOW): when collapsing the summary viewer (✕), keep focus from drifting from the removed ✕ button to body,
+  // by tracking refs/transitions and moving focus back to the re-entry ("View summary") button.
   const viewSummaryBtnRef = useRef<HTMLButtonElement>(null);
   const prevCollapsedRef = useRef(useAppStore.getState().summaryCollapsed);
   const [bgModelSync, setBgModelSync] = useState<string | null>(null);
   const [bgModelLoading, setBgModelLoading] = useState(false);
-  // 자동 업데이트 배너 — 어떤 상태에서 무엇을 띄울지는 update-banner.ts(순수)가 정한다.
-  // 이전에는 'downloaded' 일 때만 떴는데, 다운로드는 사용자 승인이 있어야 시작되므로
-  // **새 버전이 나왔다는 사실 자체를 설정 화면을 열어야만 알 수 있었다**(체인이 첫 칸에서 끊김).
+  // Auto-update banner — update-banner.ts (pure logic) decides which state displays which banner.
+  // Previously it only appeared on 'downloaded'; since downloads require user approval, the fact that a new version exists
+  // was effectively hidden unless the user opened Settings (the chain stopped at the first step).
   const [updateBanner, setUpdateBanner] = useState<UpdateBanner | null>(null);
   const [updateBannerDismissed, setUpdateBannerDismissed] = useState(false);
-  // 설치는 앱을 종료시키므로 진행 중 작업이 있으면 막는다(SettingsPanel 과 동일 기준).
-  // QA20(A·C 수렴): RAG 인덱싱·PDF 파싱도 포함해야 한다 — 부분 인덱스는 설계상 영속되지 않아
-  // 이미 지불한 클라우드 임베딩 비용이 통째로 버려지고, 스캔 PDF 의 OCR 은 수 분 작업이 소멸한다.
-  // "앱을 종료시키는 조작"의 게이트는 세션 삭제보다 넓어야 한다.
+  // Installing the app exits the app, so block it when work is in progress under the same rules as SettingsPanel.
+  // QA20(A·C convergence): RAG indexing and PDF parsing must also be included — partial indexes are not persistently valid,
+  // so cloud embedding costs already paid are discarded, and OCR for scanned PDFs can lose minutes of work.
+  // The guard for any "app-closing action" must be broader than session deletion.
   const isCollectionBusy = useAppStore((s) => s.isCollectionBusy);
   const ragIndexing = useAppStore((s) => s.ragState.isIndexing);
   const updateInstallBusy = isGenerating || isQaGenerating || isCollectionBusy || isParsing || ragIndexing;
-  // Ctrl+O / 파일 다이얼로그 재진입 가드. 진행 중이면 연타 Ctrl+O 를 무시한다.
-  // 기존의 "setIsParsing(true) 만 올리는" 힌트 방식은 실제 재진입을 막지 못했음.
+  // Ctrl+O / file-dialog re-entry guard. While active, repeated Ctrl+O presses are ignored.
+  // The earlier approach of only setting "setIsParsing(true)" was not enough to block real re-entry.
   const dialogOpenRef = useRef(false);
-  // 렌더 내 번역은 useT() 훅 사용 — uiLanguage 변경 시 즉시 리렌더.
-  // (전역 t()는 호출 시점 snapshot만 반환하므로 JSX 내부 사용 시 stale 가능)
+  // Use the useT() hook for in-render translations — it re-renders immediately when uiLanguage changes.
+  // (The global t() returns only a snapshot at call time, so it can go stale when used inside JSX)
   const tr = useT();
 
   const { handleSummarize, handleAbort, getPartialRecovery } = useSummarize();
 
-  // H2(UX): 파일 열기 다이얼로그 단일 진입점 — Ctrl+O 와 헤더 "문서 열기" 버튼이 공유.
-  // dialogOpenRef 재진입 가드 + async throw 의 setError 수렴은 기존 Ctrl+O 경로와 동일.
+  // H2(UX): single entry point for the file-open dialog — Ctrl+O and the header "Open document" button share it.
+  // The dialogOpenRef re-entry guard + async-throw to setError normalization matches the existing Ctrl+O path.
   const openPdfDialog = useCallback(async () => {
     if (dialogOpenRef.current) return;
     dialogOpenRef.current = true;
@@ -503,12 +511,48 @@ export default function App() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-white dark:bg-gray-900">
+    <div className="flex h-screen overflow-hidden bg-white dark:bg-gray-900">
+      {view === 'main' && (
+        <aside className="hidden sm:flex w-60 shrink-0 flex-col overflow-y-auto bg-[#06132f] px-4 py-5 text-gray-100">
+          <div className="mb-6 flex items-center gap-2.5 px-1">
+            <img src={logoImg} alt={tr('app.logo')} className="h-9 w-9 rounded-md object-cover" />
+            <span className="text-sm font-semibold leading-tight">{tr('app.title')}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => void openPdfDialog()}
+            disabled={isParsing}
+            className="mb-5 flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <span aria-hidden="true">＋</span>{tr('app.openPdf')}
+          </button>
+          <div className="mb-5">
+            <GlobalSearch compact />
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <RecentDocuments compact />
+            <div className="mt-5 border-t border-white/10 pt-4">
+              <CollectionsList />
+            </div>
+          </div>
+          <button
+            ref={settingsBtnRef}
+            type="button"
+            onClick={() => setView('settings')}
+            disabled={isParsing}
+            className="mt-4 flex items-center gap-2 rounded-lg px-2 py-2 text-sm text-gray-300 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-50"
+            aria-label={tr('app.settings')}
+          >
+            <span aria-hidden="true">⚙️</span>{tr('app.settings')}
+          </button>
+        </aside>
+      )}
+      <div className="flex min-w-0 flex-1 flex-col">
       {/* Header */}
       <header className="flex items-center justify-between px-4 py-3 border-b dark:border-gray-700">
         <h1 className="flex items-center gap-2 text-lg font-bold text-gray-800 dark:text-white">
-          <img src={logoImg} alt={tr('app.logo')} className="w-6 h-6 rounded" />
-          {tr('app.title')}
+          {document && <img src={logoImg} alt={tr('app.logo')} className="h-6 w-6 rounded sm:hidden" />}
+          {document ? <span className="truncate">{document.fileName}</span> : tr('app.title')}
         </h1>
         <div className="flex items-center gap-2">
           {/* H2(UX): 헤더에 상시 노출되는 문서 열기 버튼 — 기존엔 전역 열기 진입점이 Ctrl+O(비가시)뿐이었다. */}
@@ -524,14 +568,12 @@ export default function App() {
               AI 백엔드 정의 항목(provider/model/URL/청크)은 SettingsPanel 이 생성 중 게이트한다.
               파싱 중에는 문서 전환 전이라 잠시 차단. */}
           <button
-            ref={settingsBtnRef}
             onClick={() => setView('settings')}
             disabled={isParsing}
-            className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed sm:hidden"
             title={tr('app.settings')}
             aria-label={tr('app.settings')}
           >
-            {/* aria-label 이 접근성 이름을 대체하므로 아이콘은 장식이다 — 의도를 명시한다. */}
             <span aria-hidden="true">⚙️</span>
           </button>
         </div>
@@ -662,10 +704,10 @@ export default function App() {
           패널 하단이 가시 영역 **아래**로 내려갔다. 그 상태에서 패널 기준으로 뜨는 복사 토스트는
           접힌 영역에 그려져 보이지 않는다(배너 ≈76px > 토스트 ≈36px). 토스트는 증상이고, 선행
           문제는 배너가 있을 때 문서 뷰가 화면 밖으로 밀리는 것 자체다 — 여기서 함께 닫는다. */}
-      <main ref={mainViewRef} tabIndex={-1} className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col focus:outline-none">
+      <main ref={mainViewRef} tabIndex={-1} className="flex-1 min-h-0 overflow-hidden flex flex-col focus:outline-none">
         {/* 에러 표시 — role="alert"(assertive): 모든 작업 실패의 단일 채널이므로 SR 즉시 통지(a11y H1) */}
         {error && (
-          <div role="alert" className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start justify-between">
+          <div role="alert" className="mx-4 mt-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start justify-between shrink-0">
             <p className="text-red-700 dark:text-red-400 text-sm">{error.message}</p>
             <div className="flex items-start gap-2 ml-2 shrink-0">
               {/* QA29(C-3): 스트림이 환경 이유로 끊기면 이미 받은 본문이 화면에만 남고 디스크에
@@ -697,7 +739,7 @@ export default function App() {
 
         {/* v0.18.6 D1: 정보성 notice (에러와 분리). 다중 파일 드롭 등 silent-drop 알림용. */}
         {notice && (
-          <div role="status" className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg flex items-start justify-between">
+          <div role="status" className="mx-4 mt-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg flex items-start justify-between shrink-0">
             <p className="text-amber-700 dark:text-amber-400 text-sm">{notice.message}</p>
             <button
               onClick={() => setNotice(null)}
@@ -711,17 +753,14 @@ export default function App() {
 
         {/* 1) PDF 미업로드: 업로드 영역 + 최근 문서 목록 */}
         {!document && !hasSummary && (
-          <>
+          <div className="flex-1 min-h-0 overflow-y-auto p-4">
             <PdfUploader />
-            <GlobalSearch />
-            <CollectionsList />
-            <RecentDocuments />
-          </>
+          </div>
         )}
 
         {/* 모델 추천 알림 */}
         {modelHint && !isGenerating && (
-          <div role="status" className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg flex items-start justify-between">
+          <div role="status" className="mx-4 mt-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg flex items-start justify-between shrink-0">
             <p className="text-amber-700 dark:text-amber-400 text-sm">{modelHint}</p>
             <button
               onClick={() => {
@@ -737,86 +776,98 @@ export default function App() {
           </div>
         )}
 
-        {/* 2) PDF 업로드 완료, 요약 대기(또는 요약 접힘): 파일 정보 + 재진입/요약 유형 + 시작 버튼.
-            H1: summaryCollapsed 시에도 이 화면을 보여 접힌 요약+Q&A 로 재진입하게 한다. */}
-        {document && !isGenerating && (!hasSummary || summaryCollapsed) && (
-          <div className="flex flex-col items-center gap-6">
-            <div className="w-full flex items-center justify-between px-4 py-3 bg-gray-100 dark:bg-gray-800 rounded-lg">
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
-                📎 {document.fileName} ({formatUnitCount(document.pageCount, document.unitKind ?? 'page', 'short')})
-                {document.isOcr && (
-                  <span className="ml-2 px-1.5 py-0.5 text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded">
-                    OCR
+        {document && (
+          <div ref={workspaceRef} className="flex flex-1 min-h-0 flex-col overflow-hidden lg:flex-row">
+            <section
+              className="workspace-source-pane flex min-h-0 min-w-0 flex-col"
+              style={{ '--workspace-pane-basis': `${workspaceSourceWidth * 100}%` } as React.CSSProperties}
+            >
+              <div className="flex shrink-0 items-center justify-between border-b bg-gray-50 px-4 py-2 dark:border-gray-700 dark:bg-gray-800">
+                <span className="min-w-0 truncate text-sm font-medium text-gray-700 dark:text-gray-200">
+                  📄 {document.fileName}
+                  <span className="ml-2 text-xs font-normal text-gray-500 dark:text-gray-400">
+                    {formatUnitCount(document.pageCount, document.unitKind ?? 'page', 'short')}
                   </span>
-                )}
-              </span>
-              <button
-                onClick={() => {
-                  // multi-doc Phase 1: 탭 닫기와 일원화 — 탭 목록에서도 제거하고
-                  // 이웃 탭 전환/업로드 화면 복귀를 closeTab 이 일관되게 처리.
-                  if (document) void closeTab(document.filePath);
-                }}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-sm"
-                aria-label={tr('app.removeFile')}
-              >
-                {tr('app.otherFile')}
-              </button>
-            </div>
-
-            {/* H1: 접힌 요약(완료/부분)이 있으면 재진입을 1순위로. 뷰어 복귀는 백엔드 불필요. */}
-            {hasSummary && (
-              <button
-                ref={viewSummaryBtnRef}
-                onClick={() => setSummaryCollapsed(false)}
-                className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-lg font-medium transition-colors"
-              >
-                {tr('app.viewSummary')}
-              </button>
-            )}
-
-            <SummaryTypeSelector />
-
-            {/* H3: ollama 미가용 사전 경고 + 설정 진입 링크 */}
-            {ollamaNotReady && (
-              <div className="w-full p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-sm text-amber-700 dark:text-amber-400 flex items-center justify-between gap-2">
-                <span><span aria-hidden="true">⚠️</span> {tr('app.ollamaNotReady')}</span>
+                  {document.isOcr && <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">OCR</span>}
+                </span>
                 <button
-                  onClick={() => setView('settings')}
-                  className="underline shrink-0 hover:text-amber-900 dark:hover:text-amber-200"
+                  type="button"
+                  onClick={() => void closeTab(document.filePath)}
+                  className="ml-2 shrink-0 text-xs text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
+                  aria-label={tr('app.removeFile')}
                 >
-                  {tr('app.openSettings')}
+                  {tr('app.otherFile')}
                 </button>
               </div>
-            )}
+              <div className="min-h-0 flex-1">
+                {usesCanvasViewer(document.unitKind)
+                  ? <PdfViewerPanel standalone />
+                  : <DocTextViewerPanel standalone />}
+              </div>
+            </section>
 
-            {/* QA20(C-MED, 데이터손실): isParsing 중 비활성 — 새 PDF 파싱(재파싱 포함)이 끝나면
-                store 의 document 가 교체되면서 그 사이 시작된 요약이 저장 없이 폐기된다. 훅
-                (useSummarize)의 진입 가드가 진실의 원천이고 여기는 그 상태를 시각화한다
-                (TabBar/⚙️ 가 이미 isParsing 을 비활성 조건에 포함하는 것과 대칭). */}
-            <button
-              onClick={() => { setSummaryCollapsed(false); handleSummarize(); }}
-              disabled={ollamaNotReady || isParsing}
-              className={hasSummary
-                ? 'px-4 py-2 text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
-                : 'px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed'}
+            <div className="hidden lg:contents">
+              <ResizeHandle
+                containerRef={workspaceRef}
+                ratio={1 - workspaceSourceWidth}
+                onChange={(rightWidth) => setWorkspaceSourceWidth(1 - rightWidth)}
+                invert
+                labelKey="viewer.resizeSplit"
+              />
+            </div>
+            <aside
+              className="workspace-assistant-pane flex min-h-0 min-w-0 flex-col border-t dark:border-gray-700 lg:border-l lg:border-t-0"
+              style={{ '--workspace-pane-basis': `${(1 - workspaceSourceWidth) * 100}%` } as React.CSSProperties}
             >
-              {hasSummary ? tr('app.reSummarize') : tr('app.startSummary')}
-            </button>
-          </div>
-        )}
-
-        {/* 3) 요약 진행 중 또는 완료: 결과 뷰어 (H1: 접힌 상태면 숨김) */}
-        {(isGenerating || hasSummary) && !summaryCollapsed && (
-          // flex-1 min-h-0: 남는 공간만 차지한다(배너가 있으면 그만큼 줄어든다). `h-full` 이면
-          // 배너 높이만큼 넘쳐 패널 하단이 가시 영역 밖으로 나간다 — 위 <main> 주석 참조.
-          <div className="flex-1 min-h-0">
-            <SummaryViewer onAbort={handleAbort} />
+              {isGenerating || (hasSummary && !summaryCollapsed) ? (
+                <SummaryViewer onAbort={handleAbort} externalDocumentViewer />
+              ) : (
+                <>
+                  <div className="shrink-0 border-b px-4 py-3 dark:border-gray-700">
+                    <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-100">{tr('qa.header')}</h2>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <SummaryTypeSelector />
+                      {hasSummary && (
+                        <button
+                          ref={viewSummaryBtnRef}
+                          type="button"
+                          onClick={() => setSummaryCollapsed(false)}
+                          className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-500"
+                        >
+                          {tr('app.viewSummary')}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => { setSummaryCollapsed(false); handleSummarize(); }}
+                        disabled={ollamaNotReady || isParsing}
+                        className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {hasSummary ? tr('app.reSummarize') : tr('app.startSummary')}
+                      </button>
+                    </div>
+                    {ollamaNotReady && (
+                      <div className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400">
+                        <span><span aria-hidden="true">⚠️</span> {tr('app.ollamaNotReady')}</span>
+                        <button type="button" onClick={() => setView('settings')} className="shrink-0 underline">
+                          {tr('app.openSettings')}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-h-0 flex-1">
+                    <QaChat />
+                  </div>
+                </>
+              )}
+            </aside>
           </div>
         )}
       </main>
 
       {/* Status Bar */}
       <StatusBar />
+      </div>
     </div>
   );
 }

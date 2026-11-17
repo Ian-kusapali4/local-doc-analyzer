@@ -14,3 +14,23 @@ html, body, #root {
 .dark .katex-error {
   color: #f87171 !important;
 }
+
+.workspace-source-pane,
+.workspace-assistant-pane {
+  flex: 1 1 0%;
+}
+
+.workspace-source-pane {
+  --workspace-pane-basis: 55%;
+}
+
+.workspace-assistant-pane {
+  --workspace-pane-basis: 45%;
+}
+
+@media (min-width: 1024px) {
+  .workspace-source-pane,
+  .workspace-assistant-pane {
+    flex: 0 1 var(--workspace-pane-basis);
+  }
+}

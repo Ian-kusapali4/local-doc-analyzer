@@ -57,7 +57,7 @@ export function SummaryTypeSelector() {
     }
   }, [summaryType, customTemplates, setSummaryType]);
 
-  const lang = settings.summaryLanguage || 'ko';
+  const lang = settings.summaryLanguage || 'en';
   const modelBase = settings.model.split(':')[0] ?? '';
   const isKoreanOnlyModel = settings.provider === 'ollama'
     && KOREAN_ONLY_MODELS.some((m) => modelBase.startsWith(m));

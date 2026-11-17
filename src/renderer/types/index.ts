@@ -141,18 +141,14 @@ export function isCustomSummaryType(t: string): t is `custom:${string}` {
 // 앱 UI 언어
 export type UiLanguage = 'ko' | 'en';
 export const UI_LANGUAGES: { value: UiLanguage; label: string }[] = [
-  { value: 'ko', label: '한국어' },
   { value: 'en', label: 'English' },
 ];
 
 // 요약 출력 언어
 export type SummaryLanguage = 'ko' | 'en' | 'ja' | 'zh' | 'auto';
 export const SUMMARY_LANGUAGES: { value: SummaryLanguage; label: string }[] = [
-  { value: 'ko', label: '한국어' },
   { value: 'en', label: 'English' },
-  { value: 'ja', label: '日本語' },
-  { value: 'zh', label: '中文' },
-  { value: 'auto', label: '원문 유지' },
+  { value: 'auto', label: 'Keep original' },
 ];
 
 // AI 제공자
@@ -460,12 +456,12 @@ export const DEFAULT_SETTINGS: AppSettings = {
   model: 'gemma3',
   ollamaBaseUrl: 'http://localhost:11434',
   theme: 'system',
-  uiLanguage: 'ko',
+  uiLanguage: 'en',
   defaultSummaryType: 'full',
   maxChunkSize: 4000,
   enableImageAnalysis: true,
   enableOcrFallback: true,
-  summaryLanguage: 'ko' as SummaryLanguage,
+  summaryLanguage: 'en' as SummaryLanguage,
   customSummaryTemplates: [],
   enableAnswerVerification: true,
   persistSessions: true,

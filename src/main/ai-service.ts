@@ -2332,23 +2332,23 @@ Example: "Memory leaks occur due to missing backpressure[p.12]. The fix is respo
 };
 
 export function buildPrompt(text: string, type: 'full' | 'chapter' | 'keywords' | 'qa' | 'custom', language?: string, customPrompt?: string): string {
-  const lang = language || 'ko';
+  const lang = language || 'en';
   // 커스텀 요약 템플릿: 사용자 프롬프트를 시스템 지시로, 문서 텍스트를 유저 섹션으로 구성한다.
   // 인용 규칙을 함께 주입해 페이지 인용([p.N])이 동작하며, splitPrompt 규약(`\n\n---\n\n`)에 맞춰
   // 시스템/유저를 분리해 기존 스트리밍 파이프라인과 호환된다. (프롬프트 내용/길이는 IPC 에서 검증됨)
   if (type === 'custom') {
     const template = (customPrompt || '').trim();
     if (!template) throw new Error('Custom summary template prompt is empty');
-    const citationRule = CITATION_RULES[lang] || CITATION_RULES['ko'];
+    const citationRule = CITATION_RULES[lang] || CITATION_RULES['en'] || CITATION_RULES['ko'];
     return `${template}\n\n${citationRule}\n\n---\n\n${text}`;
   }
-  // noUncheckedIndexedAccess: dictionary 인덱싱 fallback. LANG_PROMPTS['ko'] 는 const 정의로 보장됨.
-  const prompts = LANG_PROMPTS[lang] || LANG_PROMPTS['ko'] || LANG_PROMPTS.ko;
+  // noUncheckedIndexedAccess: dictionary 인덱싱 fallback. LANG_PROMPTS['en'] 는 const 정의로 보장됨.
+  const prompts = LANG_PROMPTS[lang] || LANG_PROMPTS['en'] || LANG_PROMPTS['ko'] || LANG_PROMPTS.ko;
   if (!prompts) throw new Error(`No prompts for language: ${lang}`);
   const raw = prompts[type](text);
   // keywords 타입은 테이블 포맷이라 인용 규칙을 주입하지 않는다.
   if (type === 'keywords') return raw;
-  const citationRule = CITATION_RULES[lang] || CITATION_RULES['ko'];
+  const citationRule = CITATION_RULES[lang] || CITATION_RULES['en'] || CITATION_RULES['ko'];
   // 기존 템플릿은 시스템/유저를 `---\n\n` 구분자로 분리 (splitPrompt 참조).
   // 이 구분자 바로 앞에 인용 규칙을 삽입하여 시스템 섹션 말미에 붙인다.
   const separator = '\n\n---\n\n';

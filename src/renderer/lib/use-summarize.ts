@@ -527,8 +527,8 @@ async function summarizeFull(
       total: chunks.length,
       elapsedMs: Date.now() - startTime,
     });
-    const lang = settings.summaryLanguage || 'ko';
-    const labels = INTEGRATION_LABELS[lang] || INTEGRATION_LABELS['ko'] || INTEGRATION_LABELS.ko;
+    const lang = settings.summaryLanguage || 'en';
+    const labels = INTEGRATION_LABELS[lang] || INTEGRATION_LABELS['en'] || INTEGRATION_LABELS.ko;
     if (!labels) {
       setProgress(100);
       return;
@@ -639,8 +639,8 @@ async function summarizeCustomChunked(
   // 통합: 청크가 여러 개면 결합 요약에 커스텀 프롬프트를 재적용해 문서 전체 관점의 커스텀 결과 생성.
   if (!isTimedOut() && chunks.length > 1) {
     setProgressInfo({ percent: progressOffset + 0.95 * progressRange, phase: 'integrate', current: chunks.length, total: chunks.length, elapsedMs: Date.now() - startTime });
-    const lang = settings.summaryLanguage || 'ko';
-    const labels = INTEGRATION_LABELS[lang] || INTEGRATION_LABELS['ko'] || INTEGRATION_LABELS.ko;
+    const lang = settings.summaryLanguage || 'en';
+    const labels = INTEGRATION_LABELS[lang] || INTEGRATION_LABELS['en'] || INTEGRATION_LABELS.ko;
     if (!labels) { setProgress(100); return; }
     append(`\n\n---\n\n## ${labels.heading}\n\n`);
     const charsPerToken = estimateCharsPerToken(chunkSummaries.join('\n\n'));

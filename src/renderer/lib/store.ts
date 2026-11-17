@@ -443,6 +443,8 @@ interface AppState {
   // 기본 0.5 (50/50), min 0.2 / max 0.8.
   citationPanelWidth: number;
   setCitationPanelWidth: (ratio: number) => void;
+  workspaceSourceWidth: number;
+  setWorkspaceSourceWidth: (ratio: number) => void;
   /**
    * 요약 패널의 **세로** 분할 — 위(요약 본문)가 차지하는 비율. 기본 0.5, 0.2~0.8.
    *
@@ -845,10 +847,16 @@ export const useAppStore = create<AppState>((set) => ({
   )),
   // DR-01: 패널 너비 비율 — localStorage 에서 복원, 기본 0.5
   citationPanelWidth: readStoredRatio('citationPanelWidth', 0.5),
+  workspaceSourceWidth: readStoredRatio('workspaceSourceWidth', 0.55),
   setCitationPanelWidth: (ratio) => {
     const clamped = clampRatio(ratio);
     set({ citationPanelWidth: clamped });
     persistRatio('citationPanelWidth', clamped);
+  },
+  setWorkspaceSourceWidth: (ratio) => {
+    const clamped = clampRatio(ratio);
+    set({ workspaceSourceWidth: clamped });
+    persistRatio('workspaceSourceWidth', clamped);
   },
   summarySplitRatio: readStoredRatio('summarySplitRatio', 0.5),
   setSummarySplitRatio: (ratio) => {

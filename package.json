@@ -73,7 +73,7 @@
   },
   "build": {
     "appId": "com.jjw.local-doc-analyzer",
-    "productName": "로컬 문서 분석기",
+    "productName": "MHC Document Analyzer",
     "files": [
       "out/**/*",
       "!**/*.map"
@@ -91,14 +91,14 @@
     "win": {
       "target": "nsis",
       "icon": "resources/icon.png",
-      "artifactName": "Local-Doc-Analyzer-Setup-${version}.${ext}"
+      "artifactName": "MHC-Document-Analyzer-Setup-${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "로컬 문서 분석기"
+      "shortcutName": "MHC Document Analyzer"
     },
     "forceCodeSigning": false,
     "publish": [
