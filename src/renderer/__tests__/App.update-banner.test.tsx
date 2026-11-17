@@ -62,7 +62,7 @@ vi.stubGlobal('window', Object.assign(window, {
     // provider=ollama 인데 미설치/미실행이면 App 이 setup 뷰로 조기 리턴해 메인 UI 자체가
     // 렌더되지 않는다 — 배너를 보려면 정상 상태여야 한다.
     ollama: {
-      getStatus: () => Promise.resolve({ installed: true, running: true, models: ['qwen3.5:4b'] }),
+      getStatus: vi.fn(() => Promise.resolve({ installed: true, running: true, models: ['qwen3.5:4b'] })),
       pullModel: vi.fn(),
     },
     settings: { get: () => Promise.resolve({}), set: vi.fn(() => Promise.resolve()) },
@@ -145,6 +145,23 @@ describe('App — 배너가 있어도 문서 뷰가 화면 밖으로 밀리지 �
     expect(viewer!.className, '래퍼가 남는 공간을 차지하지 않는다').toMatch(/(^|\s)flex-1(\s|$)/);
     expect(viewer!.className, '래퍼에 min-h-0 이 없으면 자식이 축소되지 않아 넘친다')
       .toMatch(/(^|\s)min-h-0(\s|$)/);
+  });
+});
+
+describe('App — cloud-only startup', () => {
+  it('chat + embeddings 모두 cloud 면 Ollama 미설치 상태에서도 설치 wizard 를 열지 않는다', async () => {
+    window.electronAPI.settings.get = vi.fn(() => Promise.resolve({
+      provider: 'openai',
+      embeddingProvider: 'gemini',
+      model: 'gpt-4o',
+    }));
+    window.electronAPI.ollama.getStatus = vi.fn(() =>
+      Promise.resolve({ installed: false, running: false, models: [] }),
+    );
+
+    await mountApp();
+
+    expect(useAppStore.getState().view).toBe('main');
   });
 });
 

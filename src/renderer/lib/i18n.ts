@@ -411,6 +411,12 @@ export const _translations = {
   // ─── SettingsPanel ───
   'settings.title': { ko: 'Settings', en: 'Settings' },
   'settings.provider': { ko: 'AI Provider', en: 'AI Provider' },
+  'settings.embeddingProvider': { ko: 'Embedding Provider', en: 'Embedding Provider' },
+  'settings.embeddingProviderDesc': { ko: 'Choose a separate provider for RAG indexing and semantic search. Chat and embeddings can use different providers; cloud embeddings use that provider’s saved API key.', en: 'Choose a separate provider for RAG indexing and semantic search. Chat and embeddings can use different providers; cloud embeddings use that provider’s saved API key.' },
+  'settings.embeddingLocal': { ko: 'Ollama (local)', en: 'Ollama (local)' },
+  'settings.embeddingOpenai': { ko: 'OpenAI embeddings', en: 'OpenAI embeddings' },
+  'settings.embeddingGemini': { ko: 'Gemini embeddings', en: 'Gemini embeddings' },
+  'settings.embeddingKeyMissing': { ko: 'Save this provider’s API key below', en: 'Save this provider’s API key below' },
   'settings.ollamaLabel': { ko: 'Ollama (local, free)', en: 'Ollama (local, free)' },
   'settings.ollamaDesc': { ko: 'No internet required, data stays private', en: 'No internet required, data stays private' },
   'settings.claudeLabel': { ko: 'Claude API', en: 'Claude API' },
@@ -510,8 +516,9 @@ export const _translations = {
 
   // ─── OllamaSetupWizard ───
   'setup.title': { ko: 'MHC Document Analyzer Setup', en: 'MHC Document Analyzer Setup' },
-  'setup.desc': { ko: 'This app uses local AI (Ollama) to summarize documents.', en: 'This app uses local AI (Ollama) to summarize documents.' },
+  'setup.desc': { ko: 'Choose local Ollama or configure an online AI provider.', en: 'Choose local Ollama or configure an online AI provider.' },
   'setup.autoInstall': { ko: 'The following will be installed automatically:', en: 'The following will be installed automatically:' },
+  'setup.cloudOption': { ko: 'Use online AI instead (no Ollama download)', en: 'Use online AI instead (no Ollama download)' },
   'setup.start': { ko: 'Start setup', en: 'Start setup' },
   'setup.done': { ko: 'Setup complete!', en: 'Setup complete!' },
   'setup.otherProvider': { ko: 'Use other AI Provider', en: 'Use other AI Provider' },
@@ -631,7 +638,7 @@ export const _translations = {
   'search.modeKeyword': { ko: 'Keyword', en: 'Keyword' },
   'search.modeSemantic': { ko: 'Semantic', en: 'Semantic' },
   'search.modeHint': { ko: 'Keyword: exact terms / Semantic: similar meaning (embeddings)', en: 'Keyword: exact terms / Semantic: similar meaning (embeddings)' },
-  'search.noEmbedModel': { ko: 'Semantic search needs an embedding model — install nomic-embed-text in Ollama or use keyword search.', en: 'Semantic search needs an embedding model — install nomic-embed-text in Ollama or use keyword search.' },
+  'search.noEmbedModel': { ko: 'Semantic search needs an embedding provider and API key, or an Ollama embedding model; you can also use keyword search.', en: 'Semantic search needs an embedding provider and API key, or an Ollama embedding model; you can also use keyword search.' },
   'search.embedFailed': { ko: 'Failed to embed the query. Please try again.', en: 'Failed to embed the query. Please try again.' },
   'settings.keyUnknown': { ko: 'Cannot verify key (please reopen in a moment)', en: 'Cannot verify key (please reopen in a moment)' },
   'search.corrupted': { ko: '{count} document(s) were skipped because their index is damaged. Reopen them to rebuild the index.', en: '{count} document(s) were skipped because their index is damaged. Reopen them to rebuild the index.' },

@@ -40,13 +40,13 @@ function highlight(text: string, query: string): ReactNode {
   return parts;
 }
 
-/** 임베딩이 클라우드 서버로 나가는 provider — ollama/claude(→ollama fallback)는 localhost 전용. */
+/** 임베딩이 클라우드 서버로 나가는 provider. */
 const CLOUD_EMBED_PROVIDERS: Record<string, string> = { openai: 'OpenAI', gemini: 'Gemini' };
 
 export function GlobalSearch({ compact = false }: { compact?: boolean }) {
   const tr = useT();
   const persistEnabled = useAppStore((s) => s.settings.persistSessions);
-  const provider = useAppStore((s) => s.settings.provider);
+  const embeddingProvider = useAppStore((s) => s.settings.embeddingProvider);
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<SearchMode>('keyword');
   const [results, setResults] = useState<GlobalSearchResult[] | null>(null); // null = 아직 검색 전
@@ -134,9 +134,9 @@ export function GlobalSearch({ compact = false }: { compact?: boolean }) {
 
   if (!persistEnabled) return null;
 
-  // #5 신뢰/프라이버시 고지: 의미 검색은 검색어+문서 내용을 임베딩하는데, provider 가 클라우드면
+  // #5 신뢰/프라이버시 고지: 의미 검색은 검색어+문서 내용을 임베딩하는데, embedding provider 가 클라우드면
   // "local-first" 앱임에도 원격으로 전송된다. 의미 모드에서 클라우드 provider 일 때만 배지 노출.
-  const cloudEmbedName = mode === 'semantic' ? CLOUD_EMBED_PROVIDERS[provider] : undefined;
+  const cloudEmbedName = mode === 'semantic' ? CLOUD_EMBED_PROVIDERS[embeddingProvider] : undefined;
 
   const modeBtn = (m: SearchMode, label: string) => (
     <button

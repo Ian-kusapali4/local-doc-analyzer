@@ -13,7 +13,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { validateSettingValue } from '../settings-validate';
+import { migrateLegacyEmbeddingProvider, validateSettingValue } from '../settings-validate';
 import { MAX_TEMPLATE_ID_LEN } from '../../shared/constants';
 
 const ok = (key: string, val: unknown) => validateSettingValue(key, val);
@@ -23,6 +23,9 @@ describe('validateSettingValue — 열거형/스칼라', () => {
     ['provider', 'ollama', true],
     ['provider', 'gemini', true],
     ['provider', 'grok', false],
+    ['embeddingProvider', 'ollama', true],
+    ['embeddingProvider', 'openai', true],
+    ['embeddingProvider', 'claude', false],
     ['theme', 'system', true],
     ['theme', 'neon', false],
     ['uiLanguage', 'ko', true],
@@ -33,6 +36,25 @@ describe('validateSettingValue — 열거형/스칼라', () => {
     ['defaultSummaryType', 'custom', false],
   ])('%s = %p → ok=%s', (key, val, expected) => {
     expect(ok(key as string, val).ok).toBe(expected);
+  });
+
+  describe('migrateLegacyEmbeddingProvider', () => {
+    it.each([
+      ['openai', 'openai'],
+      ['gemini', 'gemini'],
+      ['claude', 'ollama'],
+      ['ollama', 'ollama'],
+    ])('기존 %s 설정의 임베딩 provider 를 %s 로 유지한다', (provider, expected) => {
+      const migrated = migrateLegacyEmbeddingProvider({ provider }, ['provider']);
+      expect(migrated.embeddingProvider).toBe(expected);
+    });
+
+    it('이미 저장된 임베딩 provider 와 새 설치 기본값은 덮어쓰지 않는다', () => {
+      const saved = { provider: 'claude', embeddingProvider: 'gemini' };
+      expect(migrateLegacyEmbeddingProvider(saved, ['provider', 'embeddingProvider'])).toBe(saved);
+      expect(migrateLegacyEmbeddingProvider({ provider: 'openai', embeddingProvider: 'ollama' }, null).embeddingProvider)
+        .toBe('ollama');
+    });
   });
 
   it.each([

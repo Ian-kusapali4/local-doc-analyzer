@@ -174,7 +174,7 @@ export async function restoreSessionForDocument(doc: PdfDocument): Promise<void>
           // 오채택할 위험 차단.
           store.setRestoredSession({
             docId: doc.id,
-            provider: useAppStore.getState().settings.provider,
+            provider: useAppStore.getState().settings.embeddingProvider,
             embedModel: session.embedModel,
           });
         }

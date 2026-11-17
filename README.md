@@ -42,7 +42,7 @@ This document has two parts — **[User Guide](#user-guide)** (install · usage 
 1. Download the Windows installer from the link above
 2. Run the downloaded file to install
 3. Launch the app from the desktop shortcut or Start menu
-4. On first run, the AI engine (Ollama), the base AI model (gemma3), and the RAG embedding model (nomic-embed-text) are installed automatically (~3.6GB) — just follow the prompts
+4. On first run, choose either local Ollama (downloads the engine and models, about 3.6GB) or **Use online AI instead** to configure API keys without downloading Ollama
 5. If you mainly analyze Korean documents, check the **Also install the Korean-specialized model (exaone3.5, ~4.8GB)** option on the setup screen for better Korean summaries. You can also add it later in Settings → Model Management
 
 <a id="smartscreen"></a>
@@ -119,7 +119,7 @@ gh attestation verify ./Local-Doc-Analyzer-Setup-x.x.x.exe --repo wpdlf/local-do
 
 ## AI Provider Selection
 
-The app works with local AI (Ollama) by default; switch to a paid AI when you need higher-quality summaries.
+The app supports local Ollama or a cloud-only setup. Choose **Use online AI instead** on first launch, then set both chat and embedding providers to OpenAI or Gemini to avoid installing Ollama. Document parsing and the vector index remain on the PC.
 
 | Provider | Strengths | Cost |
 |----------|-----------|------|
@@ -130,17 +130,20 @@ The app works with local AI (Ollama) by default; switch to a paid AI when you ne
 
 To use an external AI:
 1. Settings (⚙️) → select Claude, OpenAI, or Gemini under AI Provider
-2. Enter your API key and **Save** (keys are encrypted and stored locally)
-3. Choose a model and **Save Settings**
+2. Separately choose Ollama, OpenAI, or Gemini under Embedding Provider (for a fully online setup, choose OpenAI or Gemini)
+3. Enter the API key(s) for the selected services and **Save** (keys are encrypted and stored locally)
+4. Choose a chat model and **Save Settings**
+
+Cloud providers receive document text for summarization and embeddings; image analysis also sends the selected page images. API usage may incur charges.
 
 ### Q&A Embedding Models (RAG)
 
 | Provider | Embedding model | Dimensions | Notes |
 |----------|----------------|------------|-------|
-| **Ollama** | nomic-embed-text (274MB) | 768 | Runs locally, installed automatically during first-run setup |
+| **Ollama** | nomic-embed-text (274MB) | 768 | Runs locally when selected |
 | **OpenAI** | text-embedding-3-small | 1536 | Used automatically with your API key, no extra install |
 | **Gemini** | gemini-embedding-2 | — | Used automatically with your API key, no extra install |
-| **Claude** | Ollama fallback | — | No native embedding API; tries the Ollama model → falls back to keyword search |
+| **Claude** | Choose Ollama, OpenAI, or Gemini separately | — | Claude has no native embedding API |
 
 > Q&A still works without an embedding model via keyword search. RAG is an optional accuracy booster.
 
@@ -245,8 +248,8 @@ For image-based/scanned PDFs where text extraction fails, Vision AI recognizes t
 | Settings shows "Cannot verify key" | The key file could not be read at that moment — usually antivirus or a search indexer holding it briefly. The key has not been lost; reopen Settings in a moment. This is deliberately distinct from "no key saved" so a locked file never looks like a missing key |
 | Gemini "response was blocked" error | Gemini's safety filter blocked the document content, or the output budget was exhausted. Try another model (e.g. gemini-2.5-pro) or split the document |
 | Gemini "rate limit exceeded" | The free tier has a low per-minute request limit. The app automatically lowers concurrency and retries up to twice with backoff; if it persists, retry shortly or disable image analysis for image-heavy documents |
-| Q&A can't answer | If the RAG badge is missing, install the embedding model with `ollama pull nomic-embed-text`. In keyword mode, include specific terms in your question |
-| RAG indexing doesn't run | Make sure first-run setup completed (nomic-embed-text auto-install). Manual install: `ollama pull nomic-embed-text` |
+| Q&A can't answer | If the RAG badge is missing, select OpenAI/Gemini under Embedding Provider or install an Ollama embedding model with `ollama pull nomic-embed-text`. In keyword mode, include specific terms in your question |
+| RAG indexing doesn't run | Check the selected Embedding Provider and its API key, or install an Ollama embedding model with `ollama pull nomic-embed-text` |
 | The header says the search index doesn't match the embedding model | The index was built with a different embedding model than the one now in use (typically an Ollama embedding model installed or removed while the app was open). Reopen the document to rebuild the index with the current model |
 | Semantic search says some documents were skipped | Their search index is damaged or missing (an interrupted save, or files removed underneath the app). Those documents used to disappear from results with no notice at all, which read as "nothing relevant here" — reopen each one to rebuild its index |
 | Some pages are missing from the summary/search | If the document is a scan whose cover page carries a text layer, the rest is skipped by text extraction; enable "Scanned PDF OCR" in Settings and reopen it. Pages with no extractable text are reported when this happens |
@@ -455,7 +458,7 @@ PDF file
 │    ├── Embedding model availability check            │
 │    │   └── Ollama: auto-detects nomic-embed-text etc.│
 │    │       OpenAI: text-embedding-3-small            │
-│    │       Claude: Ollama fallback → else keyword    │
+│    │       Select Ollama, OpenAI, or Gemini separately│
 │    ├── Overlapping chunking (500 tokens, 10% overlap)│
 │    ├── Batched embedding, 50 at a time (2min timeout)│
 │    │   └── ai:embed IPC → Main → embedding API       │

@@ -309,11 +309,12 @@ export function SettingsPanel() {
           : t('settings.keyDeleteFail'));
         return;
       }
-      // 키 삭제 후 해당 provider 가 선택되어 있으면 Ollama 로 강제 전환 + 모델 명시 리셋.
+      // 키 삭제 후 채팅/임베딩이 해당 provider 를 쓰고 있으면 Ollama 로 전환.
       // provider-change 훅은 ollamaModels 가 비어 있으면 모델을 건드리지 않기 때문에
       // Claude/OpenAI 모델 id 가 draft 에 남아 저장 시 "Ollama + claude-sonnet-4" 같은
       // 잘못된 조합이 StatusBar/AI client 로 전파되는 문제를 사전에 방지.
       const needsProviderFlip = draft.provider === provider;
+      const needsEmbeddingFlip = draft.embeddingProvider === provider;
       if (provider === 'claude') {
         setClaudeKeyStored(false);
       } else if (provider === 'openai') {
@@ -325,6 +326,7 @@ export function SettingsPanel() {
         const fallbackModel = ollamaModels.length > 0 ? ollamaModels[0] : DEFAULT_SETTINGS.model;
         updateDraft({ provider: 'ollama', model: fallbackModel });
       }
+      if (needsEmbeddingFlip) updateDraft({ embeddingProvider: 'ollama' });
       setKeyMessage(t('settings.keyDeleted'));
     } catch {
       setKeyMessage(t('settings.keyDeleteFail'));
@@ -341,6 +343,14 @@ export function SettingsPanel() {
       return;
     }
     if (draft.provider === 'gemini' && geminiKeyStored === false) {
+      setKeyMessage(t('settings.saveKeyFirst', { provider: 'Gemini' }));
+      return;
+    }
+    if (draft.embeddingProvider === 'openai' && openaiKeyStored === false) {
+      setKeyMessage(t('settings.saveKeyFirst', { provider: 'OpenAI' }));
+      return;
+    }
+    if (draft.embeddingProvider === 'gemini' && geminiKeyStored === false) {
       setKeyMessage(t('settings.saveKeyFirst', { provider: 'Gemini' }));
       return;
     }
@@ -642,6 +652,34 @@ export function SettingsPanel() {
         </div>
       </section>
 
+      {/* Embedding provider */}
+      <section className="mb-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+        <h3 className="font-medium mb-2 text-gray-700 dark:text-gray-200">{t('settings.embeddingProvider')}</h3>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">{t('settings.embeddingProviderDesc')}</p>
+        <select
+          value={draft.embeddingProvider}
+          onChange={(e) => updateDraft({ embeddingProvider: e.target.value as AppSettings['embeddingProvider'] })}
+          aria-label={t('settings.embeddingProvider')}
+          className="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+        >
+          <option value="ollama">{t('settings.embeddingLocal')}</option>
+          <option value="openai">{t('settings.embeddingOpenai')}</option>
+          <option value="gemini">{t('settings.embeddingGemini')}</option>
+        </select>
+        {(draft.embeddingProvider === 'openai' && openaiKeyStored !== true) && (
+          <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">{t('settings.embeddingKeyMissing')}</p>
+        )}
+        {(draft.embeddingProvider === 'gemini' && geminiKeyStored !== true) && (
+          <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">{t('settings.embeddingKeyMissing')}</p>
+        )}
+        {draft.embeddingProvider === 'ollama' && ollamaModels.length === 0 && (
+          <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">{t('settings.noModels')}</p>
+        )}
+        {(draft.embeddingProvider === 'openai' || draft.embeddingProvider === 'gemini') && (
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">{t('settings.apiBilling')}</p>
+        )}
+      </section>
+
       {/* 모델 */}
       <section className="mb-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
         <h3 className="font-medium mb-3 text-gray-700 dark:text-gray-200">{t('settings.model')}</h3>
@@ -703,7 +741,7 @@ export function SettingsPanel() {
       </section>
 
       {/* Ollama 관리 (M2: 생성 중 게이트) */}
-      {draft.provider === 'ollama' && (
+      {(draft.provider === 'ollama' || draft.embeddingProvider === 'ollama') && (
         <fieldset disabled={aiBusy} className={`min-w-0 border-0 p-0 m-0 ${aiBusy ? 'opacity-60' : ''}`}>
         <section className="mb-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
           <h3 className="font-medium mb-3 text-gray-700 dark:text-gray-200">{t('settings.ollamaMgmt')}</h3>

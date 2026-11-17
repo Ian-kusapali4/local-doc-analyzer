@@ -153,6 +153,7 @@ export const SUMMARY_LANGUAGES: { value: SummaryLanguage; label: string }[] = [
 
 // AI 제공자
 export type AiProviderType = 'ollama' | 'claude' | 'openai' | 'gemini';
+export type EmbeddingProviderType = 'ollama' | 'openai' | 'gemini';
 
 // provider 표시 이름 — StatusBar/설정 토스트 공용 단일 출처.
 // R43 I-1: StatusBar 의 3-provider ternary 가 gemini 를 'OpenAI' 로 표시하던 결함의 재발 방지.
@@ -175,6 +176,7 @@ export function matchesModel(installed: string, base: string): boolean {
 // 앱 설정 (API 키는 Main 프로세스에서만 관리)
 export interface AppSettings {
   provider: AiProviderType;
+  embeddingProvider: EmbeddingProviderType;
   model: string;
   ollamaBaseUrl: string;
   theme: 'light' | 'dark' | 'system';
@@ -453,6 +455,7 @@ export interface PersistedSession {
 // 기본 설정값
 export const DEFAULT_SETTINGS: AppSettings = {
   provider: 'ollama',
+  embeddingProvider: 'ollama',
   model: 'gemma3',
   ollamaBaseUrl: 'http://localhost:11434',
   theme: 'system',

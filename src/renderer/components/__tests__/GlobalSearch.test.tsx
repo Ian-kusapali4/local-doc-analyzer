@@ -27,6 +27,7 @@ vi.stubGlobal('window', Object.assign(window, {
 import { GlobalSearch } from '../GlobalSearch';
 import { useAppStore } from '../../lib/store';
 import { DEFAULT_SETTINGS } from '../../types';
+import { t } from '../../lib/i18n';
 
 const result = (over: Partial<GlobalSearchResult>): GlobalSearchResult => ({
   docHash: 'a'.repeat(64), fileName: 'lecture.pdf', filePath: '/x/lecture.pdf', pageCount: 3,
@@ -186,22 +187,22 @@ describe('GlobalSearch', () => {
     expect(screen.queryByText(/결과가 없습니다/)).toBeNull();
   });
 
-  it('의미 모드 + 클라우드 provider(openai) → 임베딩 전송 고지 배지 노출(#5)', async () => {
-    useAppStore.setState({ settings: { ...DEFAULT_SETTINGS, persistSessions: true, provider: 'openai' } });
+  it('의미 모드 + 클라우드 embedding provider(openai) → 임베딩 전송 고지 배지 노출(#5)', async () => {
+    useAppStore.setState({ settings: { ...DEFAULT_SETTINGS, uiLanguage: 'ko', persistSessions: true, embeddingProvider: 'openai' } });
     const user = userEvent.setup();
     render(<GlobalSearch />);
     // 키워드 모드(기본)에서는 배지 없음
-    expect(screen.queryByText(/OpenAI로 전송/)).toBeNull();
+    expect(screen.queryByText(t('search.cloudEmbedBadge', { provider: 'OpenAI' }))).toBeNull();
     // 의미 모드로 전환 → 배지 노출
-    await user.click(screen.getByRole('button', { name: '의미' }));
-    expect(screen.getByText(/OpenAI로 전송/)).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: t('search.modeSemantic') }));
+    expect(screen.getByText(t('search.cloudEmbedBadge', { provider: 'OpenAI' }))).toBeTruthy();
   });
 
-  it('의미 모드 + 로컬 provider(ollama) → 고지 배지 없음(#5)', async () => {
-    useAppStore.setState({ settings: { ...DEFAULT_SETTINGS, persistSessions: true, provider: 'ollama' } });
+  it('의미 모드 + 로컬 embedding provider(ollama) → 고지 배지 없음(#5)', async () => {
+    useAppStore.setState({ settings: { ...DEFAULT_SETTINGS, uiLanguage: 'ko', persistSessions: true, embeddingProvider: 'ollama' } });
     const user = userEvent.setup();
     render(<GlobalSearch />);
-    await user.click(screen.getByRole('button', { name: '의미' }));
+    await user.click(screen.getByRole('button', { name: t('search.modeSemantic') }));
     expect(screen.queryByText(/전송/)).toBeNull();
   });
 

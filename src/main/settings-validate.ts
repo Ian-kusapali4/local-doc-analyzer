@@ -20,6 +20,7 @@ import { isValidOllamaUrl, MAX_TEMPLATE_ID_LEN } from '../shared/constants';
  */
 
 export const VALID_PROVIDERS = ['ollama', 'claude', 'openai', 'gemini'] as const;
+export const VALID_EMBEDDING_PROVIDERS = ['ollama', 'openai', 'gemini'] as const;
 export const VALID_THEMES = ['light', 'dark', 'system'] as const;
 export const VALID_UI_LANGUAGES = ['ko', 'en'] as const;
 export const VALID_SUMMARY_TYPES = ['full', 'chapter', 'keywords'] as const;
@@ -29,10 +30,24 @@ export type SettingsValidation = { ok: true; value: unknown } | { ok: false };
 
 const okIf = (cond: boolean, value: unknown): SettingsValidation => (cond ? { ok: true, value } : { ok: false });
 
+export function migrateLegacyEmbeddingProvider(
+  settings: Record<string, unknown>,
+  rawKeys: string[] | null,
+): Record<string, unknown> {
+  if (!rawKeys || rawKeys.includes('embeddingProvider')) return settings;
+  const provider = settings.provider;
+  return {
+    ...settings,
+    embeddingProvider: provider === 'openai' || provider === 'gemini' ? provider : 'ollama',
+  };
+}
+
 export function validateSettingValue(key: string, val: unknown): SettingsValidation {
   switch (key) {
     case 'provider':
       return okIf(VALID_PROVIDERS.includes(val as typeof VALID_PROVIDERS[number]), val);
+    case 'embeddingProvider':
+      return okIf(VALID_EMBEDDING_PROVIDERS.includes(val as typeof VALID_EMBEDDING_PROVIDERS[number]), val);
     case 'model':
       return okIf(typeof val === 'string' && val.length > 0 && val.length <= 100, val);
     case 'ollamaBaseUrl':

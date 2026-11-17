@@ -286,17 +286,24 @@ describe('apikey:has / apikey:delete', () => {
   });
 });
 
-describe('ai:check-embed-model (gemini)', () => {
-  it('provider gemini + 키 저장 → gemini 임베딩 모델 사용 가능', async () => {
-    H.settings.load.mockResolvedValue({ provider: 'gemini' });
+describe('ai:check-embed-model', () => {
+  it('embeddingProvider gemini + 키 저장 → Gemini 임베딩 모델 사용 가능', async () => {
+    H.settings.load.mockResolvedValue({ provider: 'claude', embeddingProvider: 'gemini' });
     H.store.load.mockReturnValue('AIza-test-key');
     expect(await invoke('ai:check-embed-model')).toEqual({ available: true, model: 'gemini-embedding-2' });
   });
 
-  it('provider gemini + 키 없음 → 사용 불가 (키워드 검색 fallback 경로)', async () => {
-    H.settings.load.mockResolvedValue({ provider: 'gemini' });
+  it('embeddingProvider gemini + 키 없음 → 사용 불가 (키워드 검색 fallback 경로)', async () => {
+    H.settings.load.mockResolvedValue({ provider: 'openai', embeddingProvider: 'gemini' });
     H.store.load.mockReturnValue(undefined);
     expect(await invoke('ai:check-embed-model')).toEqual({ available: false, model: 'gemini-embedding-2' });
+  });
+
+  it('이전 OpenAI 설정만 있는 경우 기존 임베딩 provider 를 유지한다', async () => {
+    H.settings.load.mockResolvedValue({ provider: 'openai' });
+    H.store.load.mockReturnValue('sk-test-key');
+    expect(await invoke('ai:check-embed-model')).toEqual({ available: true, model: 'text-embedding-3-small' });
+    expect(H.ollama.listModels).not.toHaveBeenCalled();
   });
 });
 
@@ -663,12 +670,15 @@ describe('ai:embed (동시성 캡 + 카운터 누수 방지)', () => {
   it('openai embed 는 listModels 미호출 + embeddingModel undefined 로 위임', async () => {
     H.settings.load.mockResolvedValue({ provider: 'openai', ollamaBaseUrl: 'http://localhost:11434' });
     H.store.load.mockReturnValue('sk-test-key');
-    H.ai.generateEmbeddings.mockResolvedValue({ embeddings: [[0.1, 0.2]], model: 'text-embedding-3-small' });
-
-    const r = await invoke('ai:embed', ['hello'], 'r1') as { success: boolean };
+    H.settings.load.mockResolvedValue({ provider: 'claude', embeddingProvider: 'openai' });
+    H.ai.generateEmbeddings.mockResolvedValue({
+      embeddings: [[0.1, 0.2]], model: 'text-embedding-3-small', provider: 'openai',
+    });
+    const r = await invoke('ai:embed', ['hello'], 'r1') as { success: boolean; model?: string };
     expect(r.success).toBe(true);
     expect(H.ollama.listModels).not.toHaveBeenCalled(); // 클라우드는 모델 해석 안 함
     const call = H.ai.generateEmbeddings.mock.calls[0]!;
+    expect(r.model).toBe('text-embedding-3-small');
     expect(call[1]).toBe('openai');
     expect(call[4]).toBeUndefined(); // 고정 모델 → embeddingModel 미전달
   });

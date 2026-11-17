@@ -1037,7 +1037,7 @@ ${citationRule}
  */
 export function useRagBuilder(): void {
   const document = useAppStore((s) => s.document);
-  const provider = useAppStore((s) => s.settings.provider);
+  const provider = useAppStore((s) => s.settings.embeddingProvider);
   // Vision 이미지 분석으로 enrich 된 page-level 텍스트. 존재하면 이것을 우선 사용해
   // RAG 인덱스에 이미지 설명이 함께 들어가도록 한다 — "요약에는 이미지 설명이 있지만
   // Q&A 검색은 못 보는" UX 비대칭 해소.

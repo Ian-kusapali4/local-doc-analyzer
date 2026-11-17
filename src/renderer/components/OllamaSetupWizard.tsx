@@ -300,6 +300,12 @@ export function OllamaSetupWizard() {
           <button onClick={startSetup} className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-lg transition-colors">
             {t('setup.start')}
           </button>
+          <button
+            onClick={() => setView('settings')}
+            className="block mx-auto mt-3 px-4 py-2 text-sm text-blue-600 dark:text-blue-400 hover:underline"
+          >
+            {t('setup.cloudOption')}
+          </button>
         </div>
       )}
 

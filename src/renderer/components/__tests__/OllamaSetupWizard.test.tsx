@@ -102,6 +102,17 @@ describe('OllamaSetupWizard 선택 설치', () => {
     expect(t('setup.start')).toBe('설정 시작');
   });
 
+  it('온라인 AI 선택 버튼은 Ollama 설치 없이 설정으로 이동한다', async () => {
+    const user = userEvent.setup();
+    render(<OllamaSetupWizard />);
+
+    await user.click(screen.getByText(t('setup.cloudOption')));
+
+    expect(useAppStore.getState().view).toBe('settings');
+    expect(ollamaMock.install).not.toHaveBeenCalled();
+    expect(ollamaMock.pullModel).not.toHaveBeenCalled();
+  });
+
   it('welcome 목록에 exaone3.5 가 기본 제외되고, 체크하면 나타난다', async () => {
     const user = userEvent.setup();
     render(<OllamaSetupWizard />);

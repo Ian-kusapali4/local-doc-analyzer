@@ -1139,11 +1139,11 @@ describe('R41 fixes', () => {
     });
     api.ai.checkEmbedModel.mockImplementation(async () => {
       // 두 await 사이 provider 토글
-      useAppStore.setState({ settings: { ...useAppStore.getState().settings, provider: 'openai' } });
+      useAppStore.setState({ settings: { ...useAppStore.getState().settings, embeddingProvider: 'gemini' } });
       return { available: true, model: 'nomic-embed-text' };
     });
     await restoreSessionForDocument(doc);
-    expect(useAppStore.getState().restoredSession?.provider).toBe('openai'); // stale 'ollama' 아님
+    expect(useAppStore.getState().restoredSession?.provider).toBe('gemini'); // stale 'ollama' 아님
   });
 
   it('#2: 동시 persist 호출이 직렬화되어 last-write-wins', async () => {

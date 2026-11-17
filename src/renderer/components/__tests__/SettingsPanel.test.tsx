@@ -139,7 +139,7 @@ describe('SettingsPanel — 저장 게이팅 / 전환', () => {
   it('provider=claude 인데 키 미저장 → 저장 차단(saveKeyFirst), updateSettings 미반영', async () => {
     const user = userEvent.setup();
     render(<SettingsPanel />);
-    await user.click(screen.getByRole('radio', { name: /Claude API/ }));
+    await user.click(document.querySelector('input[name="provider"][value="claude"]') as HTMLInputElement);
     await user.click(screen.getByText(t('settings.saveBtn')));
     expect(screen.getByText(t('settings.saveKeyFirst', { provider: 'Claude' }))).toBeTruthy();
     expect(useAppStore.getState().settings.provider).toBe('ollama'); // 미저장
@@ -166,8 +166,27 @@ describe('SettingsPanel — 저장 게이팅 / 전환', () => {
     const user = userEvent.setup();
     render(<SettingsPanel />);
     await user.click(screen.getByRole('radio', { name: /Claude API/ }));
-    const select = screen.getByRole('combobox') as HTMLSelectElement;
+    const select = screen.getByRole('combobox', { name: t('settings.model') }) as HTMLSelectElement;
     await waitFor(() => expect(select.value.startsWith('claude')).toBe(true));
+  });
+
+  it('온라인 임베딩 공급자와 채팅 공급자는 별도로 설정할 수 있다', async () => {
+    const user = userEvent.setup();
+    render(<SettingsPanel />);
+    await user.click(screen.getByRole('radio', { name: /Claude API/ }));
+    await user.selectOptions(screen.getByRole('combobox', { name: t('settings.embeddingProvider') }), 'openai');
+    await user.type(document.querySelector('#settings-claude-key') as HTMLInputElement, 'sk-ant-test');
+    await user.click(screen.getByText(t('common.save')));
+    await waitFor(() => expect(api.save).toHaveBeenCalledWith('claude', 'sk-ant-test'));
+    await user.click(screen.getByText(t('settings.saveBtn')));
+    expect(screen.getByText(t('settings.saveKeyFirst', { provider: 'OpenAI' }))).toBeTruthy();
+
+    await user.type(document.querySelector('#settings-openai-key') as HTMLInputElement, 'sk-openai-test');
+    await user.click(screen.getByText(t('common.save')));
+    await waitFor(() => expect(api.save).toHaveBeenCalledWith('openai', 'sk-openai-test'));
+    await user.click(screen.getByText(t('settings.saveBtn')));
+    expect(useAppStore.getState().settings.provider).toBe('claude');
+    expect(useAppStore.getState().settings.embeddingProvider).toBe('openai');
   });
 
   it('변경 후 저장 → updateSettings 반영 + 저장됨 버튼', async () => {

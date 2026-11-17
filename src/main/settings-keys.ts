@@ -23,6 +23,7 @@
 
 export const VALID_SETTINGS_KEYS = [
   'provider',
+  'embeddingProvider',
   'model',
   'ollamaBaseUrl',
   'theme',

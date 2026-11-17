@@ -23,7 +23,7 @@ import { MAX_PDF_SIZE_BYTES, isLocalhostHost, isValidOllamaUrl, UPDATER_CACHE_DI
 // Task 9: 진입 게이트(드롭 URL·다이얼로그 필터·재읽기)가 확장자를 각자 알고 있던 것을
 // document-formats.ts 단일 출처로 모은다.
 import { isSupportedExtension, DIALOG_FILTERS, SUPPORTED_LABEL } from '../shared/document-formats';
-import { validateSettingValue } from './settings-validate';
+import { migrateLegacyEmbeddingProvider, validateSettingValue } from './settings-validate';
 // v0.18.19 patch R34 P2: settings 키 단일 출처. 이전엔 본 파일 두 곳에 별도 리터럴이 있었고
 // R33 Surface 4 P3 가 drift 가드 부재를 지적. settings-keys.ts 가 양쪽을 derive 함.
 import { VALID_SETTINGS_KEYS, VALID_SETTINGS_KEYS_SET } from './settings-keys';
@@ -101,6 +101,7 @@ const collectionsFile = path.join(app.getPath('userData'), 'collections.json');
 // 기본 설정값 (src/renderer/types/index.ts의 DEFAULT_SETTINGS와 동기화 필요)
 const defaultSettings = {
   provider: 'ollama',
+  embeddingProvider: 'ollama',
   model: 'gemma3',
   ollamaBaseUrl: 'http://localhost:11434',
   theme: 'system',
@@ -148,7 +149,8 @@ async function loadSettings(): Promise<Record<string, unknown>> {
     const ui = settings.uiLanguage;
     if (ui === 'ko' || ui === 'en') settings.summaryLanguage = ui;
   }
-  return settings;
+  // 기존 설치는 채팅 provider 하나로 임베딩도 결정했다. 이전 선택을 유지한다.
+  return migrateLegacyEmbeddingProvider(settings, raw.keys);
 }
 
 async function saveSettings(settings: Record<string, unknown>): Promise<void> {
@@ -1487,17 +1489,14 @@ export function registerIpcHandlers(): void {
         console.warn('[ai:embed] settings 조회 실패:', (err as Error)?.message);
         return { success: false, error: SETTINGS_READ_FAILED_MSG, code: 'SETTINGS_READ_FAILED', errorKey: 'settingsReadFailed' };
       }
-      const provider = (settings.provider as 'ollama' | 'claude' | 'openai' | 'gemini') || 'ollama';
+      const legacyProvider = settings.provider;
+      const provider = (settings.embeddingProvider as 'ollama' | 'openai' | 'gemini')
+        || (legacyProvider === 'openai' || legacyProvider === 'gemini' ? legacyProvider : 'ollama');
       const ollamaBaseUrl = (settings.ollamaBaseUrl as string) || 'http://localhost:11434';
       const apiKey = provider !== 'ollama' ? apiKeyStore.load(provider) : undefined;
-      // QA post-v0.31.14: Ollama 임베딩 모델을 ai:check-embed-model 과 동일하게 해석해 넘긴다.
-      // 이전엔 모델을 undefined 로 넘겨 embedOllama 가 OLLAMA_EMBED_MODELS[0](nomic-embed-text)로
-      // 폴백했는데, check-embed-model 은 "설치된 첫 임베딩 모델"(예: mxbai-embed-large)을 반환한다.
-      // nomic 미설치 + 다른 임베딩 모델만 있는 환경에서 check 는 available 이라 보고하지만 embed 는
-      // 404 로 실패 → buildRagIndex/시맨틱검색이 조용히 키워드로 강등되는 divergence. 같은 해석을
-      // 공유해 제거(Claude 는 Ollama fallback 이므로 동일 처리). openai/gemini 는 고정 단일 모델이라 무관.
+      // Ollama 임베딩 모델은 사전 확인과 같은 모델을 사용한다. OpenAI/Gemini 는 고정 모델이다.
       let embeddingModel: string | undefined;
-      if (provider === 'ollama' || provider === 'claude') {
+      if (provider === 'ollama') {
         const installed = await ollamaManager.listModels();
         embeddingModel = (await checkEmbeddingAvailability(ollamaBaseUrl, installed)) ?? undefined;
       }
@@ -1532,7 +1531,9 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('ai:check-embed-model', async () => {
     try {
       const settings = await loadSettings();
-      const provider = (settings.provider as 'ollama' | 'claude' | 'openai' | 'gemini') || 'ollama';
+      const legacyProvider = settings.provider;
+      const provider = (settings.embeddingProvider as 'ollama' | 'openai' | 'gemini')
+        || (legacyProvider === 'openai' || legacyProvider === 'gemini' ? legacyProvider : 'ollama');
       if (provider === 'openai') {
         const apiKey = apiKeyStore.load('openai');
         return { available: !!apiKey, model: 'text-embedding-3-small' };
@@ -1541,7 +1542,6 @@ export function registerIpcHandlers(): void {
         const apiKey = apiKeyStore.load('gemini');
         return { available: !!apiKey, model: GEMINI_EMBED_MODEL };
       }
-      // Ollama or Claude (Ollama fallback)
       const ollamaBaseUrl = (settings.ollamaBaseUrl as string) || 'http://localhost:11434';
       const installed = await ollamaManager.listModels();
       const model = await checkEmbeddingAvailability(ollamaBaseUrl, installed);

@@ -48,7 +48,7 @@ afterEach(() => {
     sessionRestorePending: false,
     enrichedPageTexts: null,
     ragState: { isIndexing: false, isAvailable: false, chunkCount: 0, progress: null, model: null, error: null },
-    settings: { ...s.settings, provider: 'ollama' as const },
+    settings: { ...s.settings, embeddingProvider: 'ollama' as const },
   }));
 });
 
@@ -57,9 +57,9 @@ describe('useRagBuilder × 복원 마커 (R44 H-1)', () => {
     useAppStore.setState((s) => ({
       document: makeDoc('doc-h1'),
       sessionRestorePending: false,
-      // 마커 provider 와 현재 provider 가 달라 채택 분기를 통과하지 못함 → 정상 빌드 + 소비
+      // 마커 embedding provider 와 현재 embedding provider 가 달라 채택 분기를 통과하지 못함 → 정상 빌드 + 소비
       restoredSession: { docId: 'doc-h1', provider: 'ollama', embedModel: 'x' },
-      settings: { ...s.settings, provider: 'gemini' as const },
+      settings: { ...s.settings, embeddingProvider: 'gemini' as const },
     }));
 
     renderHook(() => useRagBuilder());
@@ -78,7 +78,7 @@ describe('useRagBuilder × 복원 마커 (R44 H-1)', () => {
     useAppStore.setState((s) => ({
       document: makeDoc('doc-adopt'),
       sessionRestorePending: false,
-      restoredSession: { docId: 'doc-adopt', provider: s.settings.provider, embedModel: 'x' },
+      restoredSession: { docId: 'doc-adopt', provider: s.settings.embeddingProvider, embedModel: 'x' },
     }));
 
     renderHook(() => useRagBuilder());

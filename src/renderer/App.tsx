@@ -221,7 +221,7 @@ export default function App() {
         const currentSettings = useAppStore.getState().settings;
         if (currentSettings.provider === 'ollama' && (!status.installed || !status.running || status.models.length === 0)) {
           setView('setup');
-        } else if (status.running) {
+        } else if (currentSettings.provider === 'ollama' && status.running) {
           ensureDefaultModels(status.models).catch(() => {
             if (!aborted) setBgModelSync(null);
           });
